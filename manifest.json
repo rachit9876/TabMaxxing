@@ -12,7 +12,8 @@
     "activeTab",
     "clipboardWrite",
     "contextMenus",
-    "downloads"
+    "downloads",
+    "webRequest"
   ],
   "host_permissions": [
     "<all_urls>"
@@ -29,7 +30,7 @@
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["content.js"],
+      "js": ["content.js", "js/adblock/adblock-cosmetic.js"],
       "run_at": "document_start",
       "all_frames": true
     },
@@ -55,6 +56,15 @@
     "page": "options.html",
     "open_in_tab": true
   },
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "js/adblock/specific-rules.json",
+        "js/adblock/generic-rules.json"
+      ],
+      "matches": ["<all_urls>"]
+    }
+  ],
   "commands": {
     "custom-shortcut": {
       "suggested_key": {
@@ -66,9 +76,34 @@
   "declarative_net_request": {
     "rule_resources": [
       {
-        "id": "block_ads",
-        "enabled": true,
-        "path": "rules/block_ads.json"
+        "id": "ublock-filters",
+        "enabled": false,
+        "path": "rules/adblock/ublock-filters.json"
+      },
+      {
+        "id": "easylist",
+        "enabled": false,
+        "path": "rules/adblock/easylist.json"
+      },
+      {
+        "id": "easyprivacy",
+        "enabled": false,
+        "path": "rules/adblock/easyprivacy.json"
+      },
+      {
+        "id": "pgl",
+        "enabled": false,
+        "path": "rules/adblock/pgl.json"
+      },
+      {
+        "id": "ublock-badware",
+        "enabled": false,
+        "path": "rules/adblock/ublock-badware.json"
+      },
+      {
+        "id": "urlhaus-full",
+        "enabled": false,
+        "path": "rules/adblock/urlhaus-full.json"
       },
       {
         "id": "block_images",

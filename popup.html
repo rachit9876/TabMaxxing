@@ -45,19 +45,19 @@
     }
     
     body {
-      width: 390px;
+      width: 460px;
       background: var(--bg);
       color: var(--text-primary);
       overflow-y: auto;
       overflow-x: hidden;
       user-select: none;
-      font-size: 13px;
+      font-size: 12px;
       -webkit-font-smoothing: antialiased;
     }
 
     /* Scrollbar styling */
     body::-webkit-scrollbar {
-      width: 5px;
+      width: 4px;
     }
     body::-webkit-scrollbar-track {
       background: var(--bg);
@@ -68,10 +68,10 @@
     }
     
     .container {
-      padding: 14px 14px 12px 14px;
+      padding: 10px 12px 10px 12px;
       display: flex;
       flex-direction: column;
-      gap: 12px;
+      gap: 7px;
     }
     
     /* Header */
@@ -85,24 +85,24 @@
     .brand-wrap {
       display: flex;
       align-items: center;
-      gap: 9px;
+      gap: 8px;
     }
     
     .logo-mark {
-      width: 30px;
-      height: 30px;
-      border-radius: 8px;
+      width: 28px;
+      height: 28px;
+      border-radius: 7px;
       background: var(--card-bg);
       border: 1px solid var(--border);
       display: flex;
       align-items: center;
       justify-content: center;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+      box-shadow: 0 2px 6px rgba(0,0,0,0.4);
     }
     
     .logo-mark img {
-      width: 18px;
-      height: 18px;
+      width: 17px;
+      height: 17px;
     }
     
     .header-text {
@@ -112,13 +112,13 @@
     }
     
     .header-text .name {
-      font-size: 15px;
+      font-size: 14.5px;
       font-weight: 700;
       letter-spacing: -0.2px;
     }
     
     .header-text .badge {
-      font-size: 9px;
+      font-size: 8.5px;
       font-weight: 800;
       color: #ff4757;
       background: rgba(255, 71, 87, 0.12);
@@ -137,9 +137,9 @@
     .scope-btn-mini {
       background: var(--card-bg);
       border: 1px solid var(--border);
-      border-radius: 7px;
-      height: 28px;
-      padding: 0 9px;
+      border-radius: 6px;
+      height: 26px;
+      padding: 0 8px;
       display: flex;
       align-items: center;
       gap: 5px;
@@ -149,13 +149,13 @@
     }
     
     .scope-btn-mini svg {
-      width: 13px;
-      height: 13px;
+      width: 12px;
+      height: 12px;
       stroke: currentColor;
     }
     
     .scope-tag {
-      font-size: 9.5px;
+      font-size: 9px;
       font-weight: 800;
       letter-spacing: 0.05em;
       color: var(--text-secondary);
@@ -171,7 +171,7 @@
       background: rgba(59, 130, 246, 0.14);
       border-color: var(--blur-accent);
       color: var(--blur-accent);
-      box-shadow: 0 0 10px rgba(59, 130, 246, 0.2);
+      box-shadow: 0 0 8px rgba(59, 130, 246, 0.2);
     }
     
     .scope-btn-mini.active-tab-scope .scope-tag {
@@ -181,9 +181,9 @@
     .settings-btn-mini {
       background: var(--card-bg);
       border: 1px solid var(--border);
-      border-radius: 7px;
-      width: 28px;
-      height: 28px;
+      border-radius: 6px;
+      width: 26px;
+      height: 26px;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -199,8 +199,8 @@
     }
     
     .settings-btn-mini svg {
-      width: 15px;
-      height: 15px;
+      width: 14px;
+      height: 14px;
       transition: transform 0.4s var(--transition);
     }
     
@@ -210,20 +210,20 @@
 
     /* Section Headers */
     .section-title {
-      font-size: 10px;
+      font-size: 9.5px;
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.08em;
       color: var(--text-secondary);
-      margin-bottom: 6px;
+      margin-bottom: 4px;
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 5px;
     }
     
     .section-title svg {
-      width: 12px;
-      height: 12px;
+      width: 11px;
+      height: 11px;
       stroke: var(--text-secondary);
       opacity: 0.8;
     }
@@ -232,14 +232,14 @@
     .target-strip {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 8px;
+      gap: 7px;
     }
     
     .target-card {
       background: var(--card-bg);
       border: 1px solid var(--border);
       border-radius: var(--radius);
-      padding: 9px 12px;
+      padding: 6px 10px;
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -255,12 +255,12 @@
     .target-info {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 7px;
     }
 
     .target-icon-wrap {
-      width: 28px;
-      height: 28px;
+      width: 24px;
+      height: 24px;
       border-radius: 6px;
       background: rgba(255,255,255,0.03);
       border: 1px solid var(--border);
@@ -271,36 +271,40 @@
     }
 
     .target-icon-wrap svg {
-      width: 14px;
-      height: 14px;
+      width: 13px;
+      height: 13px;
       stroke: currentColor;
     }
 
     .target-text-wrap {
       display: flex;
-      flex-direction: column;
-      gap: 1px;
+      align-items: center;
+      gap: 6px;
     }
     
     .target-label {
       font-size: 11px;
-      font-weight: 600;
-      color: var(--text-secondary);
+      font-weight: 700;
+      color: var(--text-primary);
     }
     
     .target-count {
-      font-size: 13px;
-      font-weight: 700;
-      line-height: 1.1;
-      color: var(--text-primary);
+      font-size: 10px;
+      font-weight: 600;
+      line-height: 1;
+      color: var(--text-secondary);
+      background: rgba(255,255,255,0.04);
+      padding: 2px 5px;
+      border-radius: 4px;
+      border: 1px solid var(--border);
     }
     
     /* Toggle Switches */
     .small-toggle {
       position: relative;
       display: inline-block;
-      width: 34px;
-      height: 19px;
+      width: 30px;
+      height: 17px;
       flex-shrink: 0;
       pointer-events: none;
     }
@@ -323,8 +327,8 @@
     .small-toggle-slider:before {
       position: absolute;
       content: "";
-      height: 13px;
-      width: 13px;
+      height: 11px;
+      width: 11px;
       left: 2px;
       bottom: 2px;
       background-color: var(--text-dim);
@@ -338,7 +342,7 @@
     }
     
     .small-toggle input:checked + .small-toggle-slider:before {
-      transform: translateX(15px);
+      transform: translateX(13px);
       background-color: #ffffff;
     }
 
@@ -346,21 +350,22 @@
     .features-grid {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
-      gap: 8px;
+      gap: 6px;
     }
     
     .status-card {
       background: var(--card-bg);
       border: 1px solid var(--border);
       border-radius: var(--radius);
-      padding: 9px 11px;
+      padding: 6px 9px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 8px;
+      gap: 6px;
       transition: all var(--transition);
       cursor: pointer;
       position: relative;
+      min-height: 40px;
     }
     
     .status-card:hover {
@@ -372,14 +377,14 @@
     .status-meta {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 7px;
       overflow: hidden;
       flex: 1;
     }
 
     .feature-icon-wrap {
-      width: 26px;
-      height: 26px;
+      width: 24px;
+      height: 24px;
       border-radius: 6px;
       background: rgba(255,255,255,0.03);
       border: 1px solid var(--border);
@@ -392,8 +397,8 @@
     }
 
     .feature-icon-wrap svg {
-      width: 14px;
-      height: 14px;
+      width: 13px;
+      height: 13px;
       stroke: currentColor;
     }
 
@@ -405,7 +410,7 @@
     }
     
     .status-label {
-      font-size: 11.5px;
+      font-size: 11px;
       font-weight: 700;
       letter-spacing: -0.1px;
       color: var(--text-primary);
@@ -416,7 +421,7 @@
     }
 
     .status-badge {
-      font-size: 9px;
+      font-size: 8.5px;
       font-weight: 700;
       color: var(--text-secondary);
       letter-spacing: 0.04em;
@@ -442,8 +447,8 @@
     }
     
     .toggle-track {
-      width: 32px;
-      height: 18px;
+      width: 28px;
+      height: 16px;
       background: #1f1f28;
       border: 1px solid var(--border);
       border-radius: 20px;
@@ -455,30 +460,50 @@
       position: absolute;
       top: 2px;
       left: 2px;
-      width: 12px;
-      height: 12px;
+      width: 10px;
+      height: 10px;
       border-radius: 50%;
       background: var(--text-dim);
       transition: all var(--transition);
     }
 
-    /* Actions Strip */
-    .actions-row {
+    /* AdBlock Banner Card */
+    .adblock-card-compact {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 6px 9px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      transition: all var(--transition);
+    }
+
+    .adblock-card-compact:hover {
+      background: var(--card-hover);
+      border-color: var(--border-focus);
+    }
+
+    /* Tools Grid */
+    .tools-grid {
       display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
     }
     
     .action-btn-compact {
       background: var(--card-bg);
       border: 1px solid var(--border);
       border-radius: var(--radius);
-      padding: 9px 12px;
+      padding: 6px 8px;
       display: flex;
       align-items: center;
-      justify-content: space-between;
+      justify-content: center;
+      gap: 6px;
       cursor: pointer;
       transition: all var(--transition);
+      min-height: 38px;
     }
     
     .action-btn-compact:hover {
@@ -490,38 +515,43 @@
     .action-left {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
+      overflow: hidden;
     }
 
     .action-icon-wrap {
-      width: 26px;
-      height: 26px;
-      border-radius: 6px;
+      width: 22px;
+      height: 22px;
+      border-radius: 5px;
       background: rgba(255,255,255,0.03);
       border: 1px solid var(--border);
       display: flex;
       align-items: center;
       justify-content: center;
       color: var(--text-secondary);
+      flex-shrink: 0;
       transition: all var(--transition);
     }
 
     .action-icon-wrap svg {
-      width: 14px;
-      height: 14px;
+      width: 12px;
+      height: 12px;
       stroke: currentColor;
     }
 
     .action-title {
-      font-size: 11.5px;
+      font-size: 10.5px;
       font-weight: 700;
       color: var(--text-primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
       transition: color var(--transition);
     }
     
     .action-btn-compact.btn-shorten:hover {
       border-color: var(--short-accent);
-      box-shadow: 0 0 10px rgba(139, 92, 246, 0.2);
+      box-shadow: 0 0 8px rgba(139, 92, 246, 0.2);
     }
     .action-btn-compact.btn-shorten:hover .action-title,
     .action-btn-compact.btn-shorten:hover .action-icon-wrap {
@@ -530,7 +560,7 @@
     
     .action-btn-compact.btn-search:hover {
       border-color: var(--search-accent);
-      box-shadow: 0 0 10px rgba(234, 179, 8, 0.2);
+      box-shadow: 0 0 8px rgba(234, 179, 8, 0.2);
     }
     .action-btn-compact.btn-search:hover .action-title,
     .action-btn-compact.btn-search:hover .action-icon-wrap {
@@ -539,22 +569,18 @@
 
     .action-btn-compact.btn-capture:hover {
       border-color: #3b82f6;
-      box-shadow: 0 0 10px rgba(59, 130, 246, 0.25);
+      box-shadow: 0 0 8px rgba(59, 130, 246, 0.25);
     }
     .action-btn-compact.btn-capture:hover .action-title,
     .action-btn-compact.btn-capture:hover .action-icon-wrap {
       color: #60a5fa;
     }
-    
-    .action-arrow-icon {
-      width: 12px;
-      height: 12px;
-      stroke: var(--text-dim);
-      transition: stroke var(--transition);
-    }
-    
-    .action-btn-compact:hover .action-arrow-icon {
-      stroke: var(--text-primary);
+
+    /* Combined Utility & QR Bar */
+    .utility-bar {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
     }
 
     /* QR Generator */
@@ -562,20 +588,20 @@
       background: var(--card-bg);
       border: 1px solid var(--border);
       border-radius: var(--radius);
-      padding: 9px 11px;
+      padding: 5px 8px;
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: 6px;
     }
     
     .qr-input-wrap {
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 5px;
       background: var(--bg);
       border: 1px solid var(--border);
-      border-radius: 7px;
-      padding: 3px 4px 3px 10px;
+      border-radius: 6px;
+      padding: 2px 3px 2px 8px;
       transition: border-color var(--transition);
     }
     
@@ -584,8 +610,8 @@
     }
 
     .qr-icon {
-      width: 14px;
-      height: 14px;
+      width: 13px;
+      height: 13px;
       stroke: var(--text-secondary);
       flex-shrink: 0;
     }
@@ -595,9 +621,10 @@
       border: none;
       background: transparent;
       color: var(--text-primary);
-      font-size: 11.5px;
+      font-size: 11px;
       outline: none;
-      padding: 4px 0;
+      padding: 3px 0;
+      min-width: 0;
     }
     
     .qr-input-wrap button {
@@ -609,7 +636,7 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      padding: 5px 8px;
+      padding: 4px 6px;
       transition: all var(--transition);
     }
     
@@ -620,13 +647,13 @@
     }
     
     .qr-input-wrap button svg {
-      width: 13px;
-      height: 13px;
+      width: 12px;
+      height: 12px;
     }
 
     /* Footer */
     .footer {
-      font-size: 9.5px;
+      font-size: 9px;
       color: var(--text-dim);
       text-align: center;
       letter-spacing: 0.05em;
@@ -757,6 +784,57 @@
       border-color: rgba(225, 48, 108, 0.3);
       background: rgba(225, 48, 108, 0.12);
     }
+
+    .status-card.active-adBlockMode-1,
+    .status-card.active-adBlockMode-2,
+    .status-card.active-adBlockMode-3 {
+      border-color: var(--adblock-accent);
+      background: rgba(16, 185, 129, 0.07);
+    }
+    .status-card.active-adBlockMode-1 .feature-icon-wrap,
+    .status-card.active-adBlockMode-2 .feature-icon-wrap,
+    .status-card.active-adBlockMode-3 .feature-icon-wrap {
+      color: var(--adblock-accent);
+      border-color: rgba(16, 185, 129, 0.3);
+      background: rgba(16, 185, 129, 0.12);
+    }
+
+    .adblock-tier-pills {
+      display: flex;
+      gap: 4px;
+      background: var(--bg);
+      padding: 3px;
+      border-radius: 7px;
+      border: 1px solid var(--border);
+    }
+    .adblock-tier-btn {
+      flex: 1;
+      padding: 4px 6px;
+      font-size: 10px;
+      font-weight: 700;
+      border-radius: 5px;
+      border: 1px solid transparent;
+      background: transparent;
+      color: var(--text-secondary);
+      cursor: pointer;
+      text-align: center;
+      transition: all var(--transition);
+      letter-spacing: 0.03em;
+    }
+    .adblock-tier-btn:hover {
+      color: var(--text-primary);
+      background: rgba(255, 255, 255, 0.04);
+    }
+    .adblock-tier-btn.active {
+      background: rgba(16, 185, 129, 0.18);
+      color: #34d399;
+      border-color: rgba(16, 185, 129, 0.4);
+    }
+    .adblock-tier-btn[data-mode="0"].active {
+      background: rgba(239, 68, 68, 0.12);
+      color: #f87171;
+      border-color: rgba(239, 68, 68, 0.3);
+    }
   </style>
 </head>
 <body>
@@ -790,7 +868,7 @@
         </div>
       </div>
       <div class="header-actions">
-        <a class="github-btn-mini" href="https://github.com/rachit9876/media-blocker-chrome" target="_blank" title="View Source on GitHub" style="color: var(--text-secondary); display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 8px; transition: var(--transition); background: transparent; text-decoration: none;" onmouseover="this.style.color='var(--text-primary)'; this.style.background='var(--card-hover)'" onmouseout="this.style.color='var(--text-secondary)'; this.style.background='transparent'">
+        <a class="github-btn-mini" href="https://github.com/rachit9876/TabMaxxing" target="_blank" title="View Source on GitHub" style="color: var(--text-secondary); display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 8px; transition: var(--transition); background: transparent; text-decoration: none;" onmouseover="this.style.color='var(--text-primary)'; this.style.background='var(--card-hover)'" onmouseout="this.style.color='var(--text-secondary)'; this.style.background='transparent'">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
             <path d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.603-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.462-1.11-1.462-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.831.092-.646.35-1.086.636-1.336-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0112 6.836c.85.004 1.705.114 2.504.336 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.138 20.161 22 16.416 22 12c0-5.523-4.477-10-10-10z"></path>
           </svg>
@@ -813,45 +891,39 @@
     </div>
     
     <!-- Target Filter Strip -->
-    <div>
-      <div class="section-title">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="22" y1="12" x2="18" y2="12"></line><line x1="6" y1="12" x2="2" y2="12"></line><line x1="12" y1="6" x2="12" y2="2"></line><line x1="12" y1="22" x2="12" y2="18"></line></svg>
-        <span>Media Targets</span>
+    <div class="target-strip">
+      <div class="target-card" id="targetImgCard">
+        <div class="target-info">
+          <div class="target-icon-wrap">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+          </div>
+          <div class="target-text-wrap">
+            <span class="target-label">Images</span>
+            <span class="target-count" id="imgCount">0 found</span>
+          </div>
+        </div>
+        <label class="small-toggle"><input type="checkbox" id="targetImgEnabled" checked /><span class="small-toggle-slider"></span></label>
       </div>
-      <div class="target-strip">
-        <div class="target-card" id="targetImgCard">
-          <div class="target-info">
-            <div class="target-icon-wrap">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
-            </div>
-            <div class="target-text-wrap">
-              <span class="target-label">Images</span>
-              <span class="target-count" id="imgCount">0 found</span>
-            </div>
+      
+      <div class="target-card" id="targetVidCard">
+        <div class="target-info">
+          <div class="target-icon-wrap">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>
           </div>
-          <label class="small-toggle"><input type="checkbox" id="targetImgEnabled" /><span class="small-toggle-slider"></span></label>
-        </div>
-        
-        <div class="target-card" id="targetVidCard">
-          <div class="target-info">
-            <div class="target-icon-wrap">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>
-            </div>
-            <div class="target-text-wrap">
-              <span class="target-label">Videos</span>
-              <span class="target-count" id="vidCount">0 found</span>
-            </div>
+          <div class="target-text-wrap">
+            <span class="target-label">Videos</span>
+            <span class="target-count" id="vidCount">0 found</span>
           </div>
-          <label class="small-toggle"><input type="checkbox" id="targetVidEnabled" /><span class="small-toggle-slider"></span></label>
         </div>
+        <label class="small-toggle"><input type="checkbox" id="targetVidEnabled" checked /><span class="small-toggle-slider"></span></label>
       </div>
     </div>
     
-    <!-- Section: Visual Privacy -->
+    <!-- Section: Privacy & Media Controls -->
     <div>
       <div class="section-title">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
-        <span>Visual Privacy & Blocking</span>
+        <span>Visual Privacy & Media Filtering</span>
       </div>
       <div class="features-grid">
         <!-- Media Block -->
@@ -903,7 +975,7 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 2a10 10 0 0 1 0 20z" fill="currentColor"></path></svg>
             </div>
             <div class="status-text-block">
-              <span class="status-label">Invert Colors</span>
+              <span class="status-label">Invert Media</span>
               <span class="status-badge" id="mediaInvertEnabledLabel">OFF</span>
             </div>
           </div>
@@ -911,17 +983,53 @@
         </div>
 
         <!-- Uniform Visuals -->
-        <div class="status-card" id="mediaUniformEnabledCard" style="grid-column: span 2;">
+        <div class="status-card" id="mediaUniformEnabledCard">
           <div class="status-meta">
             <div class="feature-icon-wrap">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="3" x2="9" y2="21"></line></svg>
             </div>
             <div class="status-text-block">
-              <span class="status-label">Uniform Grayscale</span>
+              <span class="status-label">Uniform Gray</span>
               <span class="status-badge" id="mediaUniformEnabledLabel">OFF</span>
             </div>
           </div>
           <div class="toggle-wrapper"><input type="checkbox" class="toggle-input" id="mediaUniformEnabled" /><label class="toggle-label" for="mediaUniformEnabled"><div class="toggle-track" id="mediaUniformEnabledTrack"><div class="toggle-thumb" id="mediaUniformEnabledThumb"></div></div></label></div>
+        </div>
+
+        <!-- Instagram Pro -->
+        <div class="status-card" id="instaDlEnabledCard">
+          <div class="status-meta">
+            <div class="feature-icon-wrap">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg>
+            </div>
+            <div class="status-text-block">
+              <span class="status-label">Instagram Pro</span>
+              <span class="status-badge" id="instaDlEnabledLabel">OFF</span>
+            </div>
+          </div>
+          <div class="toggle-wrapper"><input type="checkbox" class="toggle-input" id="instaDlEnabled" /><label class="toggle-label" for="instaDlEnabled"><div class="toggle-track" id="instaDlEnabledTrack"><div class="toggle-thumb" id="instaDlEnabledThumb"></div></div></label></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Ad & Tracker Shield (uBlock Origin Lite Architecture) -->
+    <div class="adblock-card-compact" id="adBlockModeCard">
+      <div class="status-meta" style="flex: 0 0 auto;">
+        <div class="feature-icon-wrap" style="color: var(--adblock-accent);">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+        </div>
+        <div class="status-text-block">
+          <span class="status-label">Ad Shield</span>
+          <span class="status-badge" id="adBlockModeLabel">OFF</span>
+        </div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 8px; flex: 1; justify-content: flex-end;">
+        <div style="font-size: 9px; color: var(--text-dim); display: none;" id="adBlockModeDesc">No Filtering</div>
+        <div class="adblock-tier-pills" id="adBlockTierPills" style="max-width: 280px; width: 100%;">
+          <button type="button" class="adblock-tier-btn active" data-mode="0">OFF</button>
+          <button type="button" class="adblock-tier-btn" data-mode="1" title="DNR Network Rules Only">BASIC</button>
+          <button type="button" class="adblock-tier-btn" data-mode="2" title="DNR + Specific Element Hiding">OPTIMAL</button>
+          <button type="button" class="adblock-tier-btn" data-mode="3" title="DNR + Specific & Generic Cosmetic Hiding">COMPLETE</button>
         </div>
       </div>
     </div>
@@ -947,20 +1055,6 @@
           <div class="toggle-wrapper"><input type="checkbox" class="toggle-input" id="stableVolumeEnabled" /><label class="toggle-label" for="stableVolumeEnabled"><div class="toggle-track" id="stableVolumeEnabledTrack"><div class="toggle-thumb" id="stableVolumeEnabledThumb"></div></div></label></div>
         </div>
 
-        <!-- Mono Audio -->
-        <div class="status-card" id="monoAudioEnabledCard">
-          <div class="status-meta">
-            <div class="feature-icon-wrap">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18v-6a9 9 0 0 1 18 0v6"></path><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"></path></svg>
-            </div>
-            <div class="status-text-block">
-              <span class="status-label">Mono Audio</span>
-              <span class="status-badge" id="monoAudioEnabledLabel">OFF</span>
-            </div>
-          </div>
-          <div class="toggle-wrapper"><input type="checkbox" class="toggle-input" id="monoAudioEnabled" /><label class="toggle-label" for="monoAudioEnabled"><div class="toggle-track" id="monoAudioEnabledTrack"><div class="toggle-thumb" id="monoAudioEnabledThumb"></div></div></label></div>
-        </div>
-
         <!-- Smooth Volume -->
         <div class="status-card" id="smoothVolumeEnabledCard">
           <div class="status-meta">
@@ -975,6 +1069,20 @@
           <div class="toggle-wrapper"><input type="checkbox" class="toggle-input" id="smoothVolumeEnabled" /><label class="toggle-label" for="smoothVolumeEnabled"><div class="toggle-track" id="smoothVolumeEnabledTrack"><div class="toggle-thumb" id="smoothVolumeEnabledThumb"></div></div></label></div>
         </div>
 
+        <!-- Mono Audio -->
+        <div class="status-card" id="monoAudioEnabledCard">
+          <div class="status-meta">
+            <div class="feature-icon-wrap">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18v-6a9 9 0 0 1 18 0v6"></path><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"></path></svg>
+            </div>
+            <div class="status-text-block">
+              <span class="status-label">Mono Audio</span>
+              <span class="status-badge" id="monoAudioEnabledLabel">OFF</span>
+            </div>
+          </div>
+          <div class="toggle-wrapper"><input type="checkbox" class="toggle-input" id="monoAudioEnabled" /><label class="toggle-label" for="monoAudioEnabled"><div class="toggle-track" id="monoAudioEnabledTrack"><div class="toggle-thumb" id="monoAudioEnabledThumb"></div></div></label></div>
+        </div>
+
         <!-- Smart Dark Mode -->
         <div class="status-card" id="darkModeEnabledCard">
           <div class="status-meta">
@@ -982,7 +1090,7 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
             </div>
             <div class="status-text-block">
-              <span class="status-label">Dark Mode</span>
+              <span class="status-label">Smart Dark</span>
               <span class="status-badge" id="darkModeEnabledLabel">OFF</span>
             </div>
           </div>
@@ -996,7 +1104,7 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 9.9-1"></path></svg>
             </div>
             <div class="status-text-block">
-              <span class="status-label">Right-Click</span>
+              <span class="status-label">Force Unblock</span>
               <span class="status-badge" id="forceRightClickEnabledLabel">OFF</span>
             </div>
           </div>
@@ -1016,107 +1124,76 @@
           </div>
           <div class="toggle-wrapper"><input type="checkbox" class="toggle-input" id="textSpoofingEnabled" /><label class="toggle-label" for="textSpoofingEnabled"><div class="toggle-track" id="textSpoofingEnabledTrack"><div class="toggle-thumb" id="textSpoofingEnabledThumb"></div></div></label></div>
         </div>
-
-        <!-- Ad & Tracker Shield -->
-        <div class="status-card" id="adBlockEnabledCard" style="grid-column: span 2;">
-          <div class="status-meta">
-            <div class="feature-icon-wrap" style="color: var(--adblock-accent);">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
-            </div>
-            <div class="status-text-block">
-              <span class="status-label">Ad & Tracker Shield (DNR)</span>
-              <span class="status-badge" id="adBlockEnabledLabel">SHIELD ON</span>
-            </div>
-          </div>
-          <div class="toggle-wrapper"><input type="checkbox" class="toggle-input" id="adBlockEnabled" /><label class="toggle-label" for="adBlockEnabled"><div class="toggle-track" id="adBlockEnabledTrack"><div class="toggle-thumb" id="adBlockEnabledThumb"></div></div></label></div>
-        </div>
-
-        <!-- Instagram Pro (Downloader & Live Copy) -->
-        <div class="status-card" id="instaDlEnabledCard" style="grid-column: span 2;">
-          <div class="status-meta">
-            <div class="feature-icon-wrap">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg>
-            </div>
-            <div class="status-text-block">
-              <span class="status-label">Instagram Pro (DL & Live Copy)</span>
-              <span class="status-badge" id="instaDlEnabledLabel">OFF</span>
-            </div>
-          </div>
-          <div class="toggle-wrapper"><input type="checkbox" class="toggle-input" id="instaDlEnabled" /><label class="toggle-label" for="instaDlEnabled"><div class="toggle-track" id="instaDlEnabledTrack"><div class="toggle-thumb" id="instaDlEnabledThumb"></div></div></label></div>
-        </div>
       </div>
     </div>
 
-    <!-- Section: Utilities & Security -->
+    <!-- Section: Tools & Security -->
     <div>
       <div class="section-title">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
-        <span>Tools & Security</span>
+        <span>Tools & Browser Security</span>
       </div>
       
-      <!-- Actions Row -->
-      <div class="actions-row" style="margin-bottom: 6px;">
-        <div class="action-btn-compact btn-capture" id="capturePageBtn" style="grid-column: span 2;">
+      <!-- Action Buttons 3-Column Grid -->
+      <div class="tools-grid" style="margin-bottom: 6px;">
+        <div class="action-btn-compact btn-capture" id="capturePageBtn" title="Full Page Screenshot & PDF Capture">
           <div class="action-left">
             <div class="action-icon-wrap" style="color: #60a5fa;">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
             </div>
-            <span class="action-title" id="capturePageStatusLabel">Full Page Screenshot & PDF</span>
+            <span class="action-title" id="capturePageStatusLabel">Capture PDF</span>
           </div>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="action-arrow-icon"><polyline points="9 18 15 12 9 6"></polyline></svg>
         </div>
-      </div>
 
-      <!-- Actions Row 2 -->
-      <div class="actions-row" style="margin-bottom: 8px;">
-        <div class="action-btn-compact btn-shorten" id="shortenUrlBtn">
+        <div class="action-btn-compact btn-shorten" id="shortenUrlBtn" title="Shorten current URL & copy to clipboard">
           <div class="action-left">
             <div class="action-icon-wrap">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
             </div>
             <span class="action-title" id="shortenStatusLabel">Shorten URL</span>
           </div>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="action-arrow-icon"><polyline points="9 18 15 12 9 6"></polyline></svg>
         </div>
 
-        <div class="action-btn-compact btn-search" id="searchImageBtn">
+        <div class="action-btn-compact btn-search" id="searchImageBtn" title="Search screen crop visually">
           <div class="action-left">
             <div class="action-icon-wrap">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
             </div>
-            <span class="action-title" id="searchImageStatusLabel">Search Area</span>
+            <span class="action-title" id="searchImageStatusLabel">Crop Search</span>
           </div>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="action-arrow-icon"><polyline points="9 18 15 12 9 6"></polyline></svg>
         </div>
       </div>
 
-      <!-- Browser Lock Card -->
-      <div class="status-card" id="browserLockEnabledCard" style="margin-bottom: 8px;">
-        <div class="status-meta">
-          <div class="feature-icon-wrap">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+      <!-- Security Lock & QR Utility Row -->
+      <div class="utility-bar">
+        <!-- Browser Lock Card -->
+        <div class="status-card" id="browserLockEnabledCard">
+          <div class="status-meta">
+            <div class="feature-icon-wrap">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+            </div>
+            <div class="status-text-block">
+              <span class="status-label">Browser Lock</span>
+              <span class="status-badge" id="browserLockEnabledLabel">LOCK OFF</span>
+            </div>
           </div>
-          <div class="status-text-block">
-            <span class="status-label">Browser Password Lock</span>
-            <span class="status-badge" id="browserLockEnabledLabel">LOCK OFF</span>
-          </div>
+          <div class="toggle-wrapper"><input type="checkbox" class="toggle-input" id="browserLockEnabled" /><label class="toggle-label" for="browserLockEnabled"><div class="toggle-track" id="browserLockEnabledTrack"><div class="toggle-thumb" id="browserLockEnabledThumb"></div></div></label></div>
         </div>
-        <div class="toggle-wrapper"><input type="checkbox" class="toggle-input" id="browserLockEnabled" /><label class="toggle-label" for="browserLockEnabled"><div class="toggle-track" id="browserLockEnabledTrack"><div class="toggle-thumb" id="browserLockEnabledThumb"></div></div></label></div>
-      </div>
 
-      <!-- QR Generator -->
-      <div class="qr-card-compact">
-        <div class="qr-input-wrap">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="qr-icon"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><rect x="7" y="7" width="3" height="3"></rect><rect x="14" y="7" width="3" height="3"></rect><rect x="7" y="14" width="3" height="3"></rect><rect x="14" y="14" width="3" height="3"></rect></svg>
-          <input type="text" id="customUrlInput" placeholder="Paste link to generate QR code..." spellcheck="false" />
-          <button id="generateQrBtn" title="Generate QR Code">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="9 18 15 12 9 6"></polyline>
-            </svg>
-          </button>
-        </div>
-        <div id="customQrContainer" style="display: none; justify-content: center; padding: 6px 0;">
-          <img id="customQrImage" src="" alt="QR Code" style="width: 130px; height: 130px; border-radius: 8px; background: #fff; padding: 8px; box-shadow: 0 4px 14px rgba(0,0,0,0.5);">
+        <!-- QR Generator Input -->
+        <div class="qr-card-compact">
+          <div class="qr-input-wrap">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="qr-icon"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><rect x="7" y="7" width="3" height="3"></rect><rect x="14" y="7" width="3" height="3"></rect><rect x="7" y="14" width="3" height="3"></rect><rect x="14" y="14" width="3" height="3"></rect></svg>
+            <input type="text" id="customUrlInput" placeholder="URL to QR..." spellcheck="false" />
+            <button id="generateQrBtn" title="Generate QR Code">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="9 18 15 12 9 6"></polyline>
+              </svg>
+            </button>
+          </div>
+          <div id="customQrContainer" style="display: none; justify-content: center; padding: 4px 0;">
+            <img id="customQrImage" src="" alt="QR Code" style="width: 100px; height: 100px; border-radius: 6px; background: #fff; padding: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.5);">
+          </div>
         </div>
       </div>
     </div>

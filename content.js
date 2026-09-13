@@ -4,6 +4,41 @@
   if (window.__MB_LOADED) return;
   window.__MB_LOADED = true;
 
+  // Auto-relay runtime errors to Background debug store (filtering out benign 3rd-party noise)
+  const BENIGN_ERRORS = [
+    "ResizeObserver loop",
+    "ResizeObserver loop completed with undelivered notifications",
+    "ResizeObserver loop limit exceeded"
+  ];
+
+  window.addEventListener('error', (e) => {
+    try {
+      const msg = e.message || '';
+      if (BENIGN_ERRORS.some(b => msg.includes(b))) return;
+      // If error is from an external 3rd-party script unrelated to tabmaxxing or page DOM
+      if (!msg && !e.filename) return;
+
+      chrome.runtime.sendMessage({
+        action: 'AGENTIC_LOG',
+        category: 'PAGE_ERROR',
+        logs: [`[${location.hostname}] ${msg || 'Error'} at ${e.filename || 'inline'}:${e.lineno || 0}:${e.colno || 0}`]
+      });
+    } catch (_) {}
+  });
+
+  window.addEventListener('unhandledrejection', (e) => {
+    try {
+      const reasonMsg = e.reason?.message || String(e.reason || '');
+      if (BENIGN_ERRORS.some(b => reasonMsg.includes(b))) return;
+
+      chrome.runtime.sendMessage({
+        action: 'AGENTIC_LOG',
+        category: 'PAGE_UNHANDLED_REJECTION',
+        logs: [`[${location.hostname}] ${reasonMsg}`]
+      });
+    } catch (_) {}
+  });
+
   const IMG_SELECTORS = 'img, picture, canvas, svg image, object[type^="image"], embed[type^="image"], [role="img"]';
   const BG_SELECTORS = '[style*="background-image"], [style*="url("]';
   const VID_SELECTORS = 'video, iframe[src*="youtube"], iframe[src*="vimeo"], iframe[src*="dailymotion"], iframe[src*="twitch"], iframe[src*="tiktok"], iframe[src*="facebook"], iframe[src*="instagram"], iframe[src*="twitter"], iframe[src*="x.com"], object[type^="video"], embed[type^="video"]';
@@ -12,7 +47,26 @@
 
   const PIXELATE_SVG = `<svg id="__mb_svg_filters__" width="0" height="0" style="position:absolute;z-index:-1;"><filter id="mb-pixelate-filter"><feGaussianBlur stdDeviation="6" result="blur" /><feComponentTransfer in="blur" result="discrete"><feFuncR type="discrete" tableValues="0 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 1"/><feFuncG type="discrete" tableValues="0 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 1"/><feFuncB type="discrete" tableValues="0 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 1"/></feComponentTransfer></filter></svg>`;
 
-  const DARK_MODE_CSS = ` html[data-mb-darkmode="true"] { background-color: #ffffff !important; filter: invert(1) hue-rotate(180deg) !important; } html[data-mb-darkmode="true"] body { background-color: #ffffff !important; } html[data-mb-darkmode="true"] img, html[data-mb-darkmode="true"] picture, html[data-mb-darkmode="true"] video, html[data-mb-darkmode="true"] canvas, html[data-mb-darkmode="true"] object, html[data-mb-darkmode="true"] embed, html[data-mb-darkmode="true"] svg image { filter: invert(1) hue-rotate(180deg) var(--mb-filter-func) grayscale(var(--mb-grayscale)) invert(var(--mb-invert)) hue-rotate(var(--mb-hue)) !important; } `;
+  const DARK_MODE_CSS = `
+    html[data-mb-darkmode="true"] {
+      background-color: #121216 !important;
+      filter: invert(1) hue-rotate(180deg) !important;
+    }
+    html[data-mb-darkmode="true"] body {
+      background-color: #121216 !important;
+    }
+    /* Counter-invert all media in dark mode so they appear completely natural */
+    ${prefix('html[data-mb-darkmode="true"]', IMG_SELECTORS)},
+    ${prefix('html[data-mb-darkmode="true"]', VID_SELECTORS)},
+    ${prefix('html[data-mb-darkmode="true"]', BG_SELECTORS)} {
+      filter: invert(1) hue-rotate(180deg) !important;
+    }
+    /* When Media Invert feature is explicitly enabled on images/videos, apply user negative filter */
+    ${prefix('html[data-mb-darkmode="true"]:root[data-mb-target-img="true"][data-mb-invert="true"]', IMG_SELECTORS)},
+    ${prefix('html[data-mb-darkmode="true"]:root[data-mb-target-vid="true"][data-mb-invert="true"]', VID_SELECTORS)} {
+      filter: none !important;
+    }
+  `;
 
   const MASTER_CSS = `:root { --mb-filter-func: blur(25px); --mb-grayscale: 0%; --mb-invert: 0; --mb-hue: 0deg; --mb-opacity: 1; } :root[data-mb-invert="true"] { --mb-invert: 1; --mb-hue: 180deg; } :root[data-mb-uniform="true"] { --mb-grayscale: 100%; } :root[data-mb-block="true"] { --mb-opacity: 0; } ${prefix(':root[data-mb-target-img="true"]', IMG_SELECTORS)}, ${prefix(':root[data-mb-target-vid="true"]', VID_SELECTORS)} { filter: var(--mb-filter-func) grayscale(var(--mb-grayscale)) invert(var(--mb-invert)) hue-rotate(var(--mb-hue)) !important; opacity: var(--mb-opacity) !important; } ${prefix(':root[data-mb-ready="true"][data-mb-target-img="true"]', IMG_SELECTORS)}, ${prefix(':root[data-mb-ready="true"][data-mb-target-vid="true"]', VID_SELECTORS)} { transition: filter 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.4s ease !important; } ${prefix(':root[data-mb-target-vid="true"]', VID_SELECTORS)} { transform: translateZ(0); } ${prefix(':root[data-mb-target-img="true"][data-mb-hover="true"]', IMG_SELECTORS).split(',').map(s => `${s.trim()}:hover`).join(', ')}, ${prefix(':root[data-mb-target-vid="true"][data-mb-hover="true"]', VID_SELECTORS).split(',').map(s => `${s.trim()}:hover`).join(', ')} { --mb-filter-func: blur(0px) !important; --mb-grayscale: 0% !important; --mb-invert: 0 !important; --mb-hue: 0deg !important; --mb-opacity: 1 !important; } ${prefix(':root[data-mb-target-img="true"][data-mb-hover="true"]', IMG_SELECTORS)}, ${prefix(':root[data-mb-target-vid="true"][data-mb-hover="true"]', VID_SELECTORS)} { cursor: pointer !important; } ${prefix(':root[data-mb-target-img="true"][data-mb-block="true"]', 'img')} { position: relative !important; visibility: hidden !important; } ${prefix(':root[data-mb-target-img="true"][data-mb-block="true"]', 'img')}::after { content: attr(alt) " (Media Blocked)" !important; visibility: visible !important; position: absolute !important; top: 0 !important; left: 0 !important; width: 100% !important; height: 100% !important; background: #1a1a1f !important; color: #a0a0b0 !important; font-size: 13px !important; font-family: sans-serif !important; display: flex !important; align-items: center !important; justify-content: center !important; text-align: center !important; padding: 8px !important; box-sizing: border-box !important; border: 1px dashed #3a3a4a !important; overflow: hidden !important; text-overflow: ellipsis !important; } ${prefix(':root[data-mb-target-vid="true"][data-mb-block="true"]', VID_SELECTORS)} { pointer-events: none !important; } ${prefix(':root[data-mb-target-img="true"][data-mb-block="true"]', BG_SELECTORS)} { background-image: none !important; } ${DARK_MODE_CSS}`;
 
@@ -28,39 +82,26 @@
   }
 
   let isForceRightClickOn = false;
-  ['contextmenu', 'copy', 'paste', 'selectstart', 'dragstart', 'mousedown', 'mouseup'].forEach(evt => {
-      window.addEventListener(evt, function(e) { 
-          if (isForceRightClickOn) { e.stopPropagation(); e.stopImmediatePropagation(); } 
-      }, true);
-  });
-
-  const COSMETIC_ADBLOCK_CSS = `
-    .adsbygoogle, [id^="google_ads"], [id*="gpt-ad"], [class*="ad-banner"], 
-    [class*="sponsored-post"], [class*="ad-container"], div[id*="taboola"], 
-    div[id*="outbrain"], div[class*="zergnet"], .trc_related_container,
-    [aria-label="advertisement"], [data-ad-unit], [data-ad-client] {
-      display: none !important;
-      visibility: hidden !important;
-      height: 0 !important;
-      min-height: 0 !important;
-      opacity: 0 !important;
-      pointer-events: none !important;
-    }
-  `;
-
-  function toggleCosmeticAdBlock(enabled) {
-    let styleEl = document.getElementById("__tabmax_adblock_cosmetic__");
-    if (enabled) {
-      if (!styleEl) {
-        styleEl = document.createElement("style");
-        styleEl.id = "__tabmax_adblock_cosmetic__";
-        styleEl.textContent = COSMETIC_ADBLOCK_CSS;
-        (document.head || document.documentElement).appendChild(styleEl);
-      }
-    } else {
-      if (styleEl) styleEl.remove();
+  const FRC_EVENTS = ['contextmenu', 'copy', 'selectstart'];
+  function onFrcCaptureEvent(e) {
+    if (isForceRightClickOn) {
+      e.stopPropagation();
+      e.stopImmediatePropagation();
     }
   }
+
+  function toggleForceRightClick(enabled) {
+    isForceRightClickOn = Boolean(enabled);
+    FRC_EVENTS.forEach(evt => {
+      window.removeEventListener(evt, onFrcCaptureEvent, true);
+      if (isForceRightClickOn) {
+        window.addEventListener(evt, onFrcCaptureEvent, true);
+      }
+    });
+    toggleForceRightClickStyle(isForceRightClickOn);
+  }
+
+
 
   function toggleForceRightClickStyle(enabled) {
       let styleEl = document.getElementById("__mb_frc_style__");
@@ -96,6 +137,7 @@
   }
 
   function attachAudioProcessing(mediaEl) {
+    if (!isStableVolumeOn && !isMonoAudioOn && !isSmoothVolumeOn) return;
     if (processedMedia.has(mediaEl)) return;
     
     try {
@@ -176,8 +218,19 @@
       
       fadeGain.connect(audioCtx.destination);
       
-      processedMedia.set(mediaEl, { effectGain, bypassGain, lowEQ, midEQ, highEQ, compressor, limiter, monoNode, fadeGain });
-      updateEQNodes(processedMedia.get(mediaEl));
+      const audioNodes = { source, effectGain, bypassGain, lowEQ, midEQ, highEQ, compressor, limiter, monoNode, fadeGain };
+      processedMedia.set(mediaEl, audioNodes);
+      updateEQNodes(audioNodes);
+
+      const cleanupMediaAudio = () => {
+        try {
+          fadeGain.disconnect();
+          source.disconnect();
+          monoNode.disconnect();
+        } catch (_) {}
+      };
+      mediaEl.addEventListener('emptied', cleanupMediaAudio, { once: true });
+      mediaEl.addEventListener('error', cleanupMediaAudio, { once: true });
     } catch (e) { }
   }
 
@@ -215,7 +268,9 @@
       const nodes = processedMedia.get(el); 
       if (nodes && nodes.monoNode) updateMonoNodeState(nodes.monoNode, enabled); 
     });
-    if (enabled && audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+    if (enabled && audioCtx && audioCtx.state === 'suspended') {
+      audioCtx.resume().catch(() => {});
+    }
   }
 
   function toggleStableVolumeLive(enabled) {
@@ -231,7 +286,9 @@
         updateEQNodes(nodes); 
       } 
     });
-    if (enabled && audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+    if (enabled && audioCtx && audioCtx.state === 'suspended') {
+      audioCtx.resume().catch(() => {});
+    }
   }
   
   function toggleSmoothVolumeLive(enabled) {
@@ -245,17 +302,33 @@
         nodes.fadeGain.gain.setTargetAtTime(1, audioCtx.currentTime, 0.05); 
       }
     });
-    if (enabled && audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+    if (enabled && audioCtx && audioCtx.state === 'suspended') {
+      audioCtx.resume().catch(() => {});
+    }
   }
+
+  // Resume AudioContext only on real user interaction to strictly adhere to autoplay policy
+  let hasUserInteracted = false;
+  const unlockAudioContext = () => {
+    hasUserInteracted = true;
+    if (audioCtx && audioCtx.state === 'suspended') {
+      audioCtx.resume().catch(() => {});
+    }
+  };
+  ['click', 'keydown', 'touchstart', 'pointerdown'].forEach(evt => {
+    window.addEventListener(evt, unlockAudioContext, { once: true, passive: true });
+  });
   
   document.addEventListener('play', (e) => { 
     if (e.target.tagName === 'VIDEO' || e.target.tagName === 'AUDIO') { 
-      if (isStableVolumeOn || isMonoAudioOn || isSmoothVolumeOn) { 
+      if ((isStableVolumeOn || isMonoAudioOn || isSmoothVolumeOn) && hasUserInteracted) { 
         attachAudioProcessing(e.target); 
-        if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume(); 
+        if (audioCtx && audioCtx.state === 'suspended') {
+          audioCtx.resume().catch(() => {});
+        }
       } 
       
-      if (isSmoothVolumeOn) {
+      if (isSmoothVolumeOn && hasUserInteracted) {
         const nodes = processedMedia.get(e.target);
         if (nodes && audioCtx) {
            nodes.fadeGain.gain.cancelScheduledValues(audioCtx.currentTime);
@@ -381,7 +454,7 @@
       [middle[i], middle[j]] = [middle[j], middle[i]];
     }
 
-    if (middle.join("") === originalMiddle) {
+    if (middle.join("") === originalMiddle && middle[0] !== middle[middle.length - 1]) {
       [middle[0], middle[middle.length - 1]] = [middle[middle.length - 1], middle[0]];
     }
 
@@ -556,7 +629,7 @@
     if (key === "blurIntensity") { currentBlurVal = value; updateVisualFilter(); }
     else if (key === "blurMode") { currentBlurMode = value; updateVisualFilter(); }
     else if (key === "mediaBlurEnabled") { value ? root.setAttribute("data-mb-blur", "true") : root.removeAttribute("data-mb-blur"); updateVisualFilter(); }
-    else if (key === "forceRightClickEnabled") { isForceRightClickOn = value; toggleForceRightClickStyle(value); }
+    else if (key === "forceRightClickEnabled") { toggleForceRightClick(value); }
     else if (key === "stableVolumeEnabled") { toggleStableVolumeLive(value); }
     else if (key === "monoAudioEnabled") { toggleMonoAudioLive(value); }
     else if (key === "audioEqMode") { audioEqMode = value; document.querySelectorAll('video, audio').forEach(el => updateEQNodes(processedMedia.get(el))); }
@@ -680,7 +753,8 @@
     shortcutAction: "toggle_blur", browserLockEnabled: false, browserLockPassword: "", urlHistory: [],
     textSpoofingEnabled: false, textSpoofingSeed: "mediablock",
     domainLockEnabled: false, lockedDomains: [],
-    adBlockEnabled: true
+    instaDlEnabled: false, instaDlCopyEnabled: false,
+    adBlockEnabled: false
   };
 
   function init() {

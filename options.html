@@ -16,11 +16,11 @@
 
     :root {
       --bg: #0b0b0f;
-      --card-bg: #14141a;
-      --card-hover: #1b1b22;
-      --card-inner: #0f0f14;
-      --border: #22222d;
-      --border-focus: #3b3b4e;
+      --card-bg: #131319;
+      --card-hover: #191922;
+      --card-inner: #0d0d12;
+      --border: #1f1f2a;
+      --border-focus: #37374a;
       
       --block-accent: #ef4444;
       --blur-accent: #3b82f6;
@@ -39,33 +39,34 @@
       
       --text-primary: #f3f3f8;
       --text-secondary: #858598;
-      --text-dim: #444456;
+      --text-dim: #4a4a5c;
       --danger: #ef4444;
       --danger-hover: #dc2626;
       
-      --radius-lg: 14px;
-      --radius-md: 10px;
-      --radius-sm: 6px;
-      --transition: 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+      --radius-lg: 11px;
+      --radius-md: 8px;
+      --radius-sm: 5px;
+      --transition: 0.18s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
     body {
       background: var(--bg);
       background-image: 
-        radial-gradient(circle at 15% 10%, rgba(59, 130, 246, 0.05) 0%, transparent 40%),
-        radial-gradient(circle at 85% 90%, rgba(168, 85, 247, 0.05) 0%, transparent 40%);
+        radial-gradient(circle at 10% 10%, rgba(59, 130, 246, 0.04) 0%, transparent 35%),
+        radial-gradient(circle at 90% 90%, rgba(168, 85, 247, 0.04) 0%, transparent 35%);
       color: var(--text-primary);
-      padding: 32px 20px 48px 20px;
+      padding: 18px 24px 32px 24px;
       display: flex;
       justify-content: center;
       min-height: 100vh;
       -webkit-font-smoothing: antialiased;
+      font-size: 12.5px;
     }
 
     /* Scrollbar styling */
     ::-webkit-scrollbar {
-      width: 6px;
-      height: 6px;
+      width: 5px;
+      height: 5px;
     }
     ::-webkit-scrollbar-track {
       background: var(--bg);
@@ -81,11 +82,11 @@
     .container {
       position: relative;
       z-index: 1;
-      max-width: 980px;
+      max-width: 1280px;
       width: 100%;
       display: flex;
       flex-direction: column;
-      gap: 20px;
+      gap: 14px;
     }
 
     /* Header */
@@ -93,123 +94,129 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding-bottom: 8px;
+      padding-bottom: 10px;
       border-bottom: 1px solid var(--border);
       flex-wrap: wrap;
-      gap: 12px;
+      gap: 10px;
     }
 
     .brand-group {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 10px;
     }
 
     .logo-box {
-      width: 38px;
-      height: 38px;
-      border-radius: 10px;
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
       background: var(--card-bg);
       border: 1px solid var(--border);
       display: flex;
       align-items: center;
       justify-content: center;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
     }
 
     .logo-box img {
-      width: 22px;
-      height: 22px;
+      width: 20px;
+      height: 20px;
     }
 
     .brand-title-wrap {
       display: flex;
       flex-direction: column;
-      gap: 2px;
+      gap: 1px;
     }
 
     .title-row {
       display: flex;
       align-items: baseline;
-      gap: 8px;
+      gap: 6px;
     }
 
     .brand-name {
-      font-size: 20px;
+      font-size: 17px;
       font-weight: 700;
       letter-spacing: -0.3px;
     }
 
     .badge-pro {
-      font-size: 9.5px;
+      font-size: 8.5px;
       font-weight: 800;
       color: #ff4757;
       background: rgba(255, 71, 87, 0.12);
       border: 1px solid rgba(255, 71, 87, 0.25);
       border-radius: 4px;
-      padding: 1px 6px;
+      padding: 1px 5px;
       letter-spacing: 0.06em;
     }
 
     .brand-subtitle {
-      font-size: 11.5px;
+      font-size: 10.5px;
       color: var(--text-secondary);
     }
 
     .header-meta {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
     }
 
     .meta-tag {
-      font-size: 10.5px;
+      font-size: 9.5px;
       font-weight: 700;
       color: var(--text-secondary);
       background: var(--card-bg);
       border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 4px 9px;
+      border-radius: 5px;
+      padding: 3px 8px;
       letter-spacing: 0.04em;
     }
 
-    /* Grid Layout */
+    /* Grid Layout: Wide 3-column / responsive 2-column */
     .grid-layout {
       display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 20px;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
       align-items: start;
     }
 
-    .column-group {
-      display: flex;
-      flex-direction: column;
-      gap: 18px;
+    @media (max-width: 1100px) {
+      .grid-layout {
+        grid-template-columns: repeat(2, 1fr);
+      }
     }
 
-    @media (max-width: 860px) {
+    @media (max-width: 680px) {
       .grid-layout {
         grid-template-columns: 1fr;
       }
     }
 
+    .column-group {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
     /* Section Cards */
     .section-title {
-      font-size: 10.5px;
+      font-size: 9.5px;
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.08em;
       color: var(--text-secondary);
-      margin-bottom: 8px;
+      margin-bottom: 5px;
       margin-left: 2px;
       display: flex;
       align-items: center;
-      gap: 7px;
+      gap: 6px;
     }
 
     .section-title svg {
-      width: 13px;
-      height: 13px;
+      width: 12px;
+      height: 12px;
       stroke: var(--text-secondary);
       opacity: 0.9;
     }
@@ -221,7 +228,7 @@
       overflow: hidden;
       display: flex;
       flex-direction: column;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+      box-shadow: 0 3px 14px rgba(0, 0, 0, 0.22);
     }
 
     /* List Items */
@@ -229,9 +236,9 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 12px 14px;
+      padding: 8px 12px;
       border-bottom: 1px solid var(--border);
-      gap: 14px;
+      gap: 10px;
       transition: background var(--transition);
     }
 
@@ -246,15 +253,15 @@
     .list-item-left {
       display: flex;
       align-items: center;
-      gap: 11px;
+      gap: 9px;
       flex: 1;
-      min-width: 140px;
+      min-width: 120px;
     }
 
     .item-icon-box {
-      width: 30px;
-      height: 30px;
-      border-radius: 7px;
+      width: 26px;
+      height: 26px;
+      border-radius: 6px;
       background: rgba(255, 255, 255, 0.03);
       border: 1px solid var(--border);
       display: flex;
@@ -265,36 +272,36 @@
     }
 
     .item-icon-box svg {
-      width: 15px;
-      height: 15px;
+      width: 13px;
+      height: 13px;
       stroke: currentColor;
     }
 
     .list-item-text {
       display: flex;
       flex-direction: column;
-      gap: 2px;
+      gap: 1px;
     }
 
     .item-title {
-      font-size: 12.5px;
+      font-size: 11.5px;
       font-weight: 700;
       color: var(--text-primary);
       letter-spacing: -0.1px;
     }
 
     .item-desc {
-      font-size: 10.5px;
+      font-size: 9.5px;
       color: var(--text-secondary);
-      line-height: 1.3;
+      line-height: 1.25;
     }
 
     /* Toggle Switches */
     .small-toggle {
       position: relative;
       display: inline-block;
-      width: 38px;
-      height: 21px;
+      width: 32px;
+      height: 18px;
       flex-shrink: 0;
       cursor: pointer;
     }
@@ -318,8 +325,8 @@
     .small-toggle-slider:before {
       position: absolute;
       content: "";
-      height: 15px;
-      width: 15px;
+      height: 12px;
+      width: 12px;
       left: 2px;
       bottom: 2px;
       background-color: var(--text-dim);
@@ -333,14 +340,14 @@
     }
 
     .small-toggle input:checked + .small-toggle-slider:before {
-      transform: translateX(17px);
+      transform: translateX(14px);
       background-color: #ffffff;
     }
 
     /* Form Controls */
     select, input[type=password], input[type=text] {
-      padding: 7px 11px;
-      font-size: 11.5px;
+      padding: 5px 9px;
+      font-size: 11px;
       border: 1px solid var(--border);
       border-radius: var(--radius-sm);
       background: var(--card-inner);
@@ -352,11 +359,11 @@
 
     select {
       cursor: pointer;
-      padding-right: 24px;
+      padding-right: 22px;
       appearance: none;
-      background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="%23858598" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>');
+      background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="%23858598" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>');
       background-repeat: no-repeat;
-      background-position: right 8px center;
+      background-position: right 7px center;
     }
 
     select:focus, input[type=password]:focus, input[type=text]:focus {
@@ -368,14 +375,14 @@
     .slider-wrap {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 7px;
       flex-shrink: 0;
     }
 
     input[type=range] {
       -webkit-appearance: none;
-      width: 130px;
-      height: 6px;
+      width: 100px;
+      height: 5px;
       background: #1f1f28;
       border: 1px solid var(--border);
       border-radius: 3px;
@@ -384,13 +391,13 @@
 
     input[type=range]::-webkit-slider-thumb {
       -webkit-appearance: none;
-      height: 16px;
-      width: 16px;
+      height: 14px;
+      width: 14px;
       border-radius: 50%;
       background: var(--blur-accent);
       border: 2px solid #ffffff;
       cursor: pointer;
-      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
       transition: transform 0.1s ease;
     }
 
@@ -399,22 +406,22 @@
     }
 
     .range-val-badge {
-      font-size: 10.5px;
+      font-size: 9.5px;
       font-weight: 700;
       color: var(--blur-accent);
       background: rgba(59, 130, 246, 0.1);
       border: 1px solid rgba(59, 130, 246, 0.25);
       border-radius: 4px;
-      padding: 2px 6px;
-      min-width: 36px;
+      padding: 1px 5px;
+      min-width: 32px;
       text-align: center;
     }
 
     /* Buttons */
     .btn-save {
-      padding: 7px 14px;
+      padding: 5px 11px;
       font-weight: 700;
-      font-size: 11.5px;
+      font-size: 11px;
       color: #fff;
       background: var(--blur-accent);
       border: none;
@@ -426,12 +433,12 @@
 
     .btn-save:hover {
       background: #2563eb;
-      box-shadow: 0 0 10px rgba(59, 130, 246, 0.35);
+      box-shadow: 0 0 8px rgba(59, 130, 246, 0.35);
     }
 
     .btn-danger {
-      padding: 7px 12px;
-      font-size: 11.5px;
+      padding: 5px 9px;
+      font-size: 11px;
       font-weight: 700;
       color: #fff;
       background: var(--danger);
@@ -444,7 +451,7 @@
 
     .btn-danger:hover {
       background: var(--danger-hover);
-      box-shadow: 0 0 10px rgba(239, 68, 68, 0.35);
+      box-shadow: 0 0 8px rgba(239, 68, 68, 0.35);
     }
 
     /* Skeleton Preview */
@@ -627,28 +634,28 @@
         </div>
       </div>
       <div class="header-meta">
-        <a href="https://github.com/rachit9876/media-blocker-chrome" target="_blank" title="View Source on GitHub" style="color: var(--text-secondary); display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 8px; transition: var(--transition); background: transparent; text-decoration: none;" onmouseover="this.style.color='var(--text-primary)'; this.style.background='var(--card-hover)'" onmouseout="this.style.color='var(--text-secondary)'; this.style.background='transparent'">
+        <a href="https://github.com/rachit9876/TabMaxxing" target="_blank" title="View Source on GitHub" style="color: var(--text-secondary); display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 8px; transition: var(--transition); background: transparent; text-decoration: none;" onmouseover="this.style.color='var(--text-primary)'; this.style.background='var(--card-hover)'" onmouseout="this.style.color='var(--text-secondary)'; this.style.background='transparent'">
           <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
             <path d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.603-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.462-1.11-1.462-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.831.092-.646.35-1.086.636-1.336-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0112 6.836c.85.004 1.705.114 2.504.336 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.138 20.161 22 16.416 22 12c0-5.523-4.477-10-10-10z"></path>
           </svg>
         </a>
         <span class="meta-tag">Chrome Extension</span>
-        <span class="meta-tag" id="appVersion">v4.4.0</span>
+        <span class="meta-tag" id="appVersion">v5.0.0</span>
         <span class="meta-tag">SHORTCUT: ALT + S</span>
       </div>
     </div>
 
-    <!-- Main Grid -->
+    <!-- Main 3-Column Grid -->
     <div class="grid-layout">
       
-      <!-- Column 1 -->
+      <!-- Column 1: Visual Privacy, Filter Modes & Targets -->
       <div class="column-group">
         
         <!-- Target Filters -->
         <div>
           <div class="section-title">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="22" y1="12" x2="18" y2="12"></line><line x1="6" y1="12" x2="2" y2="12"></line><line x1="12" y1="6" x2="12" y2="2"></line><line x1="12" y1="22" x2="12" y2="18"></line></svg>
-            <span>Media Targets & Filtering</span>
+            <span>Media Targets</span>
           </div>
           <div class="card">
             <div class="list-item">
@@ -658,10 +665,10 @@
                 </div>
                 <div class="list-item-text">
                   <span class="item-title">Apply to Images</span>
-                  <span class="item-desc">Affect all standard images, pictures, canvases, and CSS backgrounds.</span>
+                  <span class="item-desc">Images, picture tags, and CSS backgrounds.</span>
                 </div>
               </div>
-              <label class="small-toggle"><input type="checkbox" id="targetImgEnabled"><span class="small-toggle-slider"></span></label>
+              <label class="small-toggle"><input type="checkbox" id="targetImgEnabled" checked><span class="small-toggle-slider"></span></label>
             </div>
             
             <div class="list-item">
@@ -671,10 +678,10 @@
                 </div>
                 <div class="list-item-text">
                   <span class="item-title">Apply to Videos</span>
-                  <span class="item-desc">Affect video elements, HTML5 embeds, and video iframes.</span>
+                  <span class="item-desc">Video elements and embedded iframes.</span>
                 </div>
               </div>
-              <label class="small-toggle"><input type="checkbox" id="targetVidEnabled"><span class="small-toggle-slider"></span></label>
+              <label class="small-toggle"><input type="checkbox" id="targetVidEnabled" checked><span class="small-toggle-slider"></span></label>
             </div>
           </div>
         </div>
@@ -693,7 +700,7 @@
                 </div>
                 <div class="list-item-text">
                   <span class="item-title">Smart Dark Mode</span>
-                  <span class="item-desc">Force elegant dark themes on light websites dynamically.</span>
+                  <span class="item-desc">Invert light pages while keeping media natural.</span>
                 </div>
               </div>
               <label class="small-toggle"><input type="checkbox" id="darkModeEnabled"><span class="small-toggle-slider"></span></label>
@@ -706,7 +713,7 @@
                 </div>
                 <div class="list-item-text">
                   <span class="item-title">Blur Style</span>
-                  <span class="item-desc">Switch between smooth Gaussian blur and pixelation mosaic.</span>
+                  <span class="item-desc">Gaussian blur or pixel mosaic.</span>
                 </div>
               </div>
               <select id="blurMode">
@@ -721,8 +728,8 @@
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"></line><line x1="4" y1="10" x2="4" y2="3"></line><line x1="12" y1="21" x2="12" y2="12"></line><line x1="12" y1="8" x2="12" y2="3"></line><line x1="20" y1="21" x2="20" y2="16"></line><line x1="20" y1="12" x2="20" y2="3"></line><line x1="1" y1="14" x2="7" y2="14"></line><line x1="9" y1="8" x2="15" y2="8"></line><line x1="17" y1="16" x2="23" y2="16"></line></svg>
                 </div>
                 <div class="list-item-text">
-                  <span class="item-title" id="blurIntensityLabel">Blur Intensity</span>
-                  <span class="item-desc">Adjust the visual privacy filter strength.</span>
+                  <span class="item-title" id="blurIntensityLabel">Filter Intensity</span>
+                  <span class="item-desc">Adjust privacy filter strength.</span>
                 </div>
               </div>
               <div class="slider-wrap">
@@ -733,54 +740,11 @@
           </div>
         </div>
 
-        <!-- Text Privacy (Typoglycemia) -->
-        <div>
-          <div class="section-title">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 7 4 4 20 4 20 7"></polyline><line x1="9" y1="20" x2="15" y2="20"></line><line x1="12" y1="4" x2="12" y2="20"></line></svg>
-            <span>Text Privacy & Anti-Shoulder Surfing</span>
-          </div>
-          <div class="card">
-            <div class="list-item">
-              <div class="list-item-left">
-                <div class="item-icon-box" style="color: var(--textspoof-accent);">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
-                </div>
-                <div class="list-item-text">
-                  <span class="item-title">Text Spoofing</span>
-                  <span class="item-desc">Scramble page text into deterministic, seed-based typoglycemia.</span>
-                </div>
-              </div>
-              <label class="small-toggle"><input type="checkbox" id="textSpoofingEnabled"><span class="small-toggle-slider"></span></label>
-            </div>
-            
-            <div class="list-item">
-              <div class="list-item-left">
-                <div class="item-icon-box" style="color: var(--invert-accent);">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
-                </div>
-                <div class="list-item-text">
-                  <span class="item-title">Spoofing Seed</span>
-                  <span class="item-desc">The same seed produces the same readable scrambling pattern.</span>
-                </div>
-              </div>
-              <input type="text" id="textSpoofingSeed" placeholder="mediablock" spellcheck="false" style="width: 140px;">
-            </div>
-
-            <!-- Skeleton Live Preview -->
-            <div class="skeleton-wrap">
-              <span style="font-size: 11px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em;">Live Typoglycemia Preview:</span>
-              <div class="skeleton-preview" id="textSpoofPreview">
-                alt: "A golden retriever puppy running through a field"
-              </div>
-            </div>
-          </div>
-        </div>
-
         <!-- Ad & Tracker Shield Suite -->
         <div>
           <div class="section-title">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
-            <span>Ad & Tracker Shield (DNR)</span>
+            <span>Ad Shield (uBlock Origin Lite Engine)</span>
           </div>
           <div class="card">
             <div class="list-item">
@@ -789,53 +753,28 @@
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
                 </div>
                 <div class="list-item-text">
-                  <span class="item-title">Enable Native Ad & Tracker Blocker</span>
-                  <span class="item-desc">Blocks ad networks, popups, and telemetry beacons natively with zero CPU overhead.</span>
+                  <span class="item-title">Protection Mode</span>
+                  <span class="item-desc">DNR rules & cosmetic CSS hiding.</span>
                 </div>
               </div>
-              <label class="small-toggle"><input type="checkbox" id="adBlockEnabled"><span class="small-toggle-slider"></span></label>
+              <select id="adBlockMode" style="width: 150px;">
+                <option value="0">0: Off</option>
+                <option value="1">1: Basic (DNR)</option>
+                <option value="2">2: Optimal (+ Specific)</option>
+                <option value="3">3: Complete (+ Generic)</option>
+              </select>
             </div>
-          </div>
-        </div>
-
-        <!-- Instagram Downloader & Live Copy Suite -->
-        <div>
-          <div class="section-title">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg>
-            <span>Instagram Media Downloader & Live Copy</span>
-          </div>
-          <div class="card">
-            <div class="list-item">
-              <div class="list-item-left">
-                <div class="item-icon-box" style="color: var(--insta-accent);">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg>
-                </div>
-                <div class="list-item-text">
-                  <span class="item-title">Enable Instagram Downloader</span>
-                  <span class="item-desc">Inject high-res media download buttons on posts, reels, and stories.</span>
-                </div>
+            <div class="skeleton-wrap" style="padding: 9px 12px; background: rgba(16, 185, 129, 0.04); border-top: 1px solid var(--border);">
+              <div id="adBlockModeExplainer" style="font-size: 10.5px; line-height: 1.4; color: var(--text-secondary);">
+                <strong style="color: var(--text-primary);" id="adBlockModeTitle">Off (0):</strong> <span id="adBlockModeBody">Content blocking is completely disabled.</span>
               </div>
-              <label class="small-toggle"><input type="checkbox" id="instaDlEnabled"><span class="small-toggle-slider"></span></label>
-            </div>
-            
-            <div class="list-item">
-              <div class="list-item-left">
-                <div class="item-icon-box" style="color: var(--invert-accent);">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-                </div>
-                <div class="list-item-text">
-                  <span class="item-title">1-Click Live Clipboard Copier</span>
-                  <span class="item-desc">Copy high-resolution photos and video frames directly to clipboard for instant pasting.</span>
-                </div>
-              </div>
-              <label class="small-toggle"><input type="checkbox" id="instaDlCopyEnabled"><span class="small-toggle-slider"></span></label>
             </div>
           </div>
         </div>
 
       </div>
 
-      <!-- Column 2 -->
+      <!-- Column 2: Audio Normalization, Text Spoofing & Media DL -->
       <div class="column-group">
         
         <!-- Audio EQ Engine -->
@@ -852,7 +791,7 @@
                 </div>
                 <div class="list-item-text">
                   <span class="item-title">Stable Volume Engine</span>
-                  <span class="item-desc">Dynamic compression to level quiet voices & clamp loud spikes.</span>
+                  <span class="item-desc">Clamp loud spikes & boost whispering dialogue.</span>
                 </div>
               </div>
               <label class="small-toggle"><input type="checkbox" id="stableVolumeEnabled"><span class="small-toggle-slider"></span></label>
@@ -865,11 +804,12 @@
                 </div>
                 <div class="list-item-text">
                   <span class="item-title">Mono Audio Downmix</span>
-                  <span class="item-desc">Combine stereo channels into unified balanced mono.</span>
+                  <span class="item-desc">Combine channels for 1-earbud listening.</span>
                 </div>
               </div>
               <label class="small-toggle"><input type="checkbox" id="monoAudioEnabled"><span class="small-toggle-slider"></span></label>
             </div>
+
             <div class="list-item">
               <div class="list-item-left">
                 <div class="item-icon-box" style="color: var(--search-accent);">
@@ -877,7 +817,7 @@
                 </div>
                 <div class="list-item-text">
                   <span class="item-title">Smooth Volume (Fade In)</span>
-                  <span class="item-desc">Gradually increase volume when media starts playing.</span>
+                  <span class="item-desc">Ramp up volume softly when media starts.</span>
                 </div>
               </div>
               <label class="small-toggle"><input type="checkbox" id="smoothVolumeEnabled"><span class="small-toggle-slider"></span></label>
@@ -890,16 +830,16 @@
                 </div>
                 <div class="list-item-text">
                   <span class="item-title">Audio Profile</span>
-                  <span class="item-desc">Tune specific dynamic frequency curves.</span>
+                  <span class="item-desc">Frequency curves tuning.</span>
                 </div>
               </div>
               <select id="audioEqMode">
-                <option value="stable">Flat (Standard Compression)</option>
-                <option value="dialogue">Dialogue Boost (Clear Voices)</option>
-                <option value="bass_cut">Night Mode (Heavy Bass Cut)</option>
-                <option value="bass_boost">Heavy Bass (Punchy)</option>
-                <option value="music">Music (Dynamic EQ)</option>
-                <option value="cinema">Cinema (Immersive)</option>
+                <option value="stable">Flat (Standard)</option>
+                <option value="dialogue">Dialogue Boost</option>
+                <option value="bass_cut">Night Mode</option>
+                <option value="bass_boost">Heavy Bass</option>
+                <option value="music">Music</option>
+                <option value="cinema">Cinema</option>
               </select>
             </div>
 
@@ -909,8 +849,8 @@
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
                 </div>
                 <div class="list-item-text">
-                  <span class="item-title">Target Loudness (LUFS)</span>
-                  <span class="item-desc">Volume normalization threshold target.</span>
+                  <span class="item-title">Loudness Target</span>
+                  <span class="item-desc">LUFS normalization threshold.</span>
                 </div>
               </div>
               <select id="audioLufs">
@@ -920,13 +860,94 @@
                 <option value="-16">-16 LUFS</option>
                 <option value="-18">-18 LUFS</option>
                 <option value="-20">-20 LUFS</option>
-                <option value="-22">-22 LUFS</option>
-                <option value="-24">-24 LUFS</option>
               </select>
             </div>
           </div>
         </div>
 
+        <!-- Instagram Downloader & Live Copy Suite -->
+        <div>
+          <div class="section-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg>
+            <span>Instagram Pro (DL & Copier)</span>
+          </div>
+          <div class="card">
+            <div class="list-item">
+              <div class="list-item-left">
+                <div class="item-icon-box" style="color: var(--insta-accent);">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg>
+                </div>
+                <div class="list-item-text">
+                  <span class="item-title">Download Buttons</span>
+                  <span class="item-desc">Inject buttons on posts, reels, and stories.</span>
+                </div>
+              </div>
+              <label class="small-toggle"><input type="checkbox" id="instaDlEnabled"><span class="small-toggle-slider"></span></label>
+            </div>
+            
+            <div class="list-item">
+              <div class="list-item-left">
+                <div class="item-icon-box" style="color: var(--invert-accent);">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                </div>
+                <div class="list-item-text">
+                  <span class="item-title">Live Clipboard Copier</span>
+                  <span class="item-desc">1-click direct clipboard copy.</span>
+                </div>
+              </div>
+              <label class="small-toggle"><input type="checkbox" id="instaDlCopyEnabled"><span class="small-toggle-slider"></span></label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Text Privacy (Typoglycemia) -->
+        <div>
+          <div class="section-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 7 4 4 20 4 20 7"></polyline><line x1="9" y1="20" x2="15" y2="20"></line><line x1="12" y1="4" x2="12" y2="20"></line></svg>
+            <span>Text Spoofing (Anti-Snoop)</span>
+          </div>
+          <div class="card">
+            <div class="list-item">
+              <div class="list-item-left">
+                <div class="item-icon-box" style="color: var(--textspoof-accent);">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+                </div>
+                <div class="list-item-text">
+                  <span class="item-title">Text Spoofing</span>
+                  <span class="item-desc">Deterministic typoglycemic scramble.</span>
+                </div>
+              </div>
+              <label class="small-toggle"><input type="checkbox" id="textSpoofingEnabled"><span class="small-toggle-slider"></span></label>
+            </div>
+            
+            <div class="list-item">
+              <div class="list-item-left">
+                <div class="item-icon-box" style="color: var(--invert-accent);">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                </div>
+                <div class="list-item-text">
+                  <span class="item-title">Seed</span>
+                  <span class="item-desc">Custom scramble pattern.</span>
+                </div>
+              </div>
+              <input type="text" id="textSpoofingSeed" placeholder="mediablock" spellcheck="false" style="width: 105px;">
+            </div>
+
+            <!-- Skeleton Live Preview -->
+            <div class="skeleton-wrap" style="padding: 9px 12px;">
+              <span style="font-size: 10px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase;">Preview:</span>
+              <div class="skeleton-preview" id="textSpoofPreview" style="min-height: 48px; padding: 8px 10px; font-size: 11px;">
+                alt: "A golden retriever puppy running through a field"
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Column 3: Security, Shortened URLs & Dev Console -->
+      <div class="column-group">
+        
         <!-- Security & Domain Lock -->
         <div>
           <div class="section-title">
@@ -942,55 +963,11 @@
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 9.9-1"></path></svg>
                 </div>
                 <div class="list-item-text">
-                  <span class="item-title">Force Right-Click & Copy</span>
-                  <span class="item-desc">Unlock context menus & selection on restrictive sites.</span>
+                  <span class="item-title">Force Right-Click</span>
+                  <span class="item-desc">Unlock context menus & selection.</span>
                 </div>
               </div>
               <label class="small-toggle"><input type="checkbox" id="forceRightClickEnabled"><span class="small-toggle-slider"></span></label>
-            </div>
-
-            <!-- Master Password -->
-            <div class="list-item" style="flex-direction: column; align-items: flex-start; gap: 10px;">
-              <div class="list-item-left" style="width: 100%;">
-                <div class="item-icon-box" style="color: var(--lock-accent);">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
-                </div>
-                <div class="list-item-text">
-                  <span class="item-title">Universal Password</span>
-                  <span class="item-desc">Used for browser lock and domain-level session security.</span>
-                </div>
-              </div>
-              <div style="display: flex; flex-direction: column; gap: 6px; width: 100%;">
-                <div style="display: flex; gap: 8px; width: 100%; flex-wrap: wrap;">
-                  <input type="password" id="browserLockPassword" placeholder="Enter password..." style="flex: 1; min-width: 130px;">
-                  <input type="password" id="browserLockPasswordConfirm" placeholder="Confirm password..." style="flex: 1; min-width: 130px;">
-                  <button id="savePasswordBtn" class="btn-save">Save</button>
-                  <button id="deletePasswordBtn" class="btn-danger" style="display: none;" title="Remove Password">Remove</button>
-                </div>
-                <span id="passwordFeedback" style="font-size: 11px; font-weight: 700; display: none; margin-top: 2px;"></span>
-              </div>
-            </div>
-
-            <!-- Domain Lock -->
-            <div class="list-item" style="flex-direction: column; align-items: flex-start; gap: 10px;">
-              <div style="display: flex; justify-content: space-between; width: 100%; align-items: center;">
-                <div class="list-item-left">
-                  <div class="item-icon-box" style="color: var(--danger);">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
-                  </div>
-                  <div class="list-item-text">
-                    <span class="item-title">Domain Lock</span>
-                    <span class="item-desc">Require password to access specific domains.</span>
-                  </div>
-                </div>
-                <label class="small-toggle"><input type="checkbox" id="domainLockEnabled"><span class="small-toggle-slider"></span></label>
-              </div>
-              
-              <div style="display: flex; gap: 8px; width: 100%;">
-                <input type="text" id="newLockedDomain" placeholder="e.g. reddit.com" style="flex: 1;" spellcheck="false">
-                <button id="addDomainBtn" class="btn-save">Add Domain</button>
-              </div>
-              <div id="lockedDomainsList" style="width: 100%; max-height: 130px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px;"></div>
             </div>
 
             <!-- Keyboard Shortcut -->
@@ -1000,24 +977,68 @@
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2" ry="2"></rect><line x1="6" y1="8" x2="6" y2="8"></line><line x1="10" y1="8" x2="10" y2="8"></line><line x1="14" y1="8" x2="14" y2="8"></line><line x1="18" y1="8" x2="18" y2="8"></line><line x1="6" y1="12" x2="6" y2="12"></line><line x1="18" y1="12" x2="18" y2="12"></line><line x1="9" y1="16" x2="15" y2="16"></line></svg>
                 </div>
                 <div class="list-item-text">
-                  <span class="item-title">Alt + S Shortcut Action</span>
-                  <span class="item-desc">Action triggered when pressing the hotkey.</span>
+                  <span class="item-title">Alt + S Action</span>
+                  <span class="item-desc">Hotkey action.</span>
                 </div>
               </div>
-              <select id="shortcutAction">
+              <select id="shortcutAction" style="width: 140px;">
                 <option value="toggle_blur">Toggle Blur</option>
                 <option value="open_settings">Open Settings</option>
                 <option value="toggle_block">Toggle Block</option>
                 <option value="toggle_invert">Toggle Invert</option>
-                <option value="toggle_uniform">Toggle Uniform Visuals</option>
-                <option value="toggle_hover">Toggle Hover Reveal</option>
-                <option value="toggle_rightclick">Toggle Force Right-Click</option>
-                <option value="toggle_stablevolume">Toggle Stable Volume</option>
-                <option value="toggle_monoaudio">Toggle Mono Audio</option>
-                <option value="toggle_smoothvolume">Toggle Smooth Volume</option>
+                <option value="toggle_uniform">Toggle Uniform</option>
+                <option value="toggle_hover">Toggle Hover</option>
+                <option value="toggle_rightclick">Toggle Right-Click</option>
+                <option value="toggle_stablevolume">Toggle Stable Vol</option>
+                <option value="toggle_monoaudio">Toggle Mono</option>
+                <option value="toggle_smoothvolume">Toggle Smooth Vol</option>
                 <option value="toggle_darkmode">Toggle Dark Mode</option>
-                <option value="toggle_textspoof">Toggle Text Spoofing</option>
+                <option value="toggle_textspoof">Toggle Text Spoof</option>
               </select>
+            </div>
+
+            <!-- Master Password -->
+            <div class="list-item" style="flex-direction: column; align-items: flex-start; gap: 8px;">
+              <div class="list-item-left" style="width: 100%;">
+                <div class="item-icon-box" style="color: var(--lock-accent);">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                </div>
+                <div class="list-item-text">
+                  <span class="item-title">Master Password</span>
+                  <span class="item-desc">Browser lock & domain security.</span>
+                </div>
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 5px; width: 100%;">
+                <div style="display: flex; gap: 6px; width: 100%;">
+                  <input type="password" id="browserLockPassword" placeholder="New password..." style="flex: 1; min-width: 90px;">
+                  <input type="password" id="browserLockPasswordConfirm" placeholder="Confirm..." style="flex: 1; min-width: 90px;">
+                  <button id="savePasswordBtn" class="btn-save">Save</button>
+                  <button id="deletePasswordBtn" class="btn-danger" style="display: none;" title="Remove Password">✕</button>
+                </div>
+                <span id="passwordFeedback" style="font-size: 10.5px; font-weight: 700; display: none;"></span>
+              </div>
+            </div>
+
+            <!-- Domain Lock -->
+            <div class="list-item" style="flex-direction: column; align-items: flex-start; gap: 8px;">
+              <div style="display: flex; justify-content: space-between; width: 100%; align-items: center;">
+                <div class="list-item-left">
+                  <div class="item-icon-box" style="color: var(--danger);">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                  </div>
+                  <div class="list-item-text">
+                    <span class="item-title">Domain Lock</span>
+                    <span class="item-desc">Password protect domains.</span>
+                  </div>
+                </div>
+                <label class="small-toggle"><input type="checkbox" id="domainLockEnabled"><span class="small-toggle-slider"></span></label>
+              </div>
+              
+              <div style="display: flex; gap: 6px; width: 100%;">
+                <input type="text" id="newLockedDomain" placeholder="e.g. reddit.com" style="flex: 1;" spellcheck="false">
+                <button id="addDomainBtn" class="btn-save">Add</button>
+              </div>
+              <div id="lockedDomainsList" style="width: 100%; max-height: 90px; overflow-y: auto; display: flex; flex-direction: column; gap: 3px;"></div>
             </div>
 
           </div>
@@ -1027,15 +1048,33 @@
         <div>
           <div class="section-title">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
-            <span>Shortened Links & QR History</span>
+            <span>Shortened Links & QR</span>
           </div>
           <div class="card">
-            <div class="list-item" style="padding: 10px 14px; background: var(--card-inner);">
-              <span class="item-desc" style="font-weight: 700;">Recent URLs & Mobile QR Codes</span>
-              <button id="clearHistoryBtn" style="background: transparent; border: none; color: var(--danger); cursor: pointer; font-size: 11px; font-weight: 700; transition: opacity 0.2s;">Clear All</button>
+            <div class="list-item" style="padding: 6px 12px; background: var(--card-inner);">
+              <span class="item-desc" style="font-weight: 700;">Recent URLs</span>
+              <button id="clearHistoryBtn" style="background: transparent; border: none; color: var(--danger); cursor: pointer; font-size: 10.5px; font-weight: 700;">Clear All</button>
             </div>
-            <div id="historyContainer" style="max-height: 190px; overflow-y: auto;">
+            <div id="historyContainer" style="max-height: 120px; overflow-y: auto;">
             </div>
+          </div>
+        </div>
+
+        <!-- Live Dev & Diagnostics Console -->
+        <div>
+          <div class="section-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" y1="19" x2="20" y2="19"></line></svg>
+            <span>Live Dev & Diagnostics</span>
+          </div>
+          <div class="card">
+            <div class="list-item" style="padding: 6px 12px; background: var(--card-inner);">
+              <span class="item-desc" style="font-weight: 700;">Extension Logs</span>
+              <div style="display: flex; gap: 6px;">
+                <button id="copyLogsBtn" style="background: var(--card-hover); border: 1px solid var(--border); color: var(--text-primary); cursor: pointer; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 4px;">Copy</button>
+                <button id="clearLogsBtn" style="background: transparent; border: none; color: var(--danger); cursor: pointer; font-size: 10px; font-weight: 700;">Clear</button>
+              </div>
+            </div>
+            <div id="agenticLogsContainer" style="max-height: 120px; overflow-y: auto; padding: 8px 10px; font-family: monospace !important; font-size: 10px; color: #a5b4fc; background: #08080c; border-radius: 0 0 var(--radius-md) var(--radius-md); white-space: pre-wrap; word-break: break-all; line-height: 1.4;">[Ready] No runtime errors recorded.</div>
           </div>
         </div>
 

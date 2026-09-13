@@ -7,8 +7,8 @@ const DEFAULTS = {
   shortcutAction: "toggle_blur", browserLockEnabled: false, browserLockPassword: "", urlHistory: [],
   textSpoofingEnabled: false, textSpoofingSeed: "mediablock",
   domainLockEnabled: false, lockedDomains: [],
-  instaDlEnabled: true, instaDlCopyEnabled: true,
-  adBlockEnabled: true
+  instaDlEnabled: false, instaDlCopyEnabled: false,
+  adBlockMode: 0 // 0 = Off, 1 = Basic (DNR), 2 = Optimal (DNR + Specific Cosmetic), 3 = Complete (Optimal + Generic Cosmetic)
 };
 
 // Search engine endpoints for context menu and snippet area visual search
@@ -20,6 +20,29 @@ const ENGINES = {
 
 let latestCapturePayload = null;
 
+// Global Agentic Live Debug Tunnel & Logger
+const AGENTIC_LOGS = [];
+function agenticLog(category, ...args) {
+  const entry = `[${new Date().toISOString()}] [${category}] ${args.map(a => {
+    if (a instanceof Error) return `${a.message}\n${a.stack}`;
+    if (typeof a === 'object') {
+      try { return JSON.stringify(a); } catch (_) { return String(a); }
+    }
+    return String(a);
+  }).join(' ')}`;
+  AGENTIC_LOGS.unshift(entry);
+  if (AGENTIC_LOGS.length > 250) AGENTIC_LOGS.pop();
+  chrome.storage.local.set({ agenticDebugLogs: AGENTIC_LOGS });
+}
+
+self.addEventListener('error', (e) => {
+  agenticLog('SW_UNCAUGHT_ERROR', e.message || 'Unknown Service Worker Error', e.filename, e.lineno, e.colno, e.error);
+});
+
+self.addEventListener('unhandledrejection', (e) => {
+  agenticLog('SW_UNHANDLED_REJECTION', e.reason?.message || String(e.reason), e.reason?.stack || '');
+});
+
 async function hashPassword(password) {
   if (!password) return "";
   const msgBuffer = new TextEncoder().encode(password);
@@ -30,6 +53,10 @@ async function hashPassword(password) {
 
 async function init() {
   const data = await chrome.storage.local.get(DEFAULTS);
+  // Migrate legacy adBlockEnabled if present
+  if (typeof data.adBlockMode !== 'number') {
+    data.adBlockMode = data.adBlockEnabled ? 1 : 0;
+  }
   await chrome.storage.local.set(data);
   await updateDNR();
   await updateBadge();
@@ -37,18 +64,31 @@ async function init() {
 
 init();
 
+const ADBLOCK_RULESETS = [
+  "ublock-filters",
+  "easylist",
+  "easyprivacy",
+  "pgl",
+  "ublock-badware",
+  "urlhaus-full"
+];
+
 async function updateDNR() {
   try {
-    const data = await chrome.storage.local.get(['mediaBlockEnabled', 'targetImgEnabled', 'targetVidEnabled', 'adBlockEnabled']);
+    const data = await chrome.storage.local.get(['mediaBlockEnabled', 'targetImgEnabled', 'targetVidEnabled', 'adBlockMode', 'adBlockEnabled']);
     const blockOn = Boolean(data.mediaBlockEnabled);
-    const adBlockOn = data.adBlockEnabled !== false;
+    const mode = typeof data.adBlockMode === 'number' ? data.adBlockMode : (data.adBlockEnabled ? 1 : 0);
+    const adBlockOn = mode >= 1;
     
     const enableRulesetIds = [];
-    if (adBlockOn) enableRulesetIds.push("block_ads");
+    if (adBlockOn) {
+      enableRulesetIds.push(...ADBLOCK_RULESETS);
+    }
     if (blockOn && data.targetImgEnabled !== false) enableRulesetIds.push("block_images");
     if (blockOn && data.targetVidEnabled !== false) enableRulesetIds.push("block_videos");
     
-    const disableRulesetIds = ["block_ads", "block_images", "block_videos"].filter(id => !enableRulesetIds.includes(id));
+    const allRegistered = [...ADBLOCK_RULESETS, "block_images", "block_videos"];
+    const disableRulesetIds = allRegistered.filter(id => !enableRulesetIds.includes(id));
     
     await chrome.declarativeNetRequest.updateEnabledRulesets({ enableRulesetIds, disableRulesetIds });
   } catch (error) {
@@ -58,7 +98,7 @@ async function updateDNR() {
 
 async function updateBadge() {
   try {
-    const data = await chrome.storage.local.get(DEFAULTS);
+    const data = await chrome.storage.local.get(['browserLockEnabled', 'adBlockMode', 'adBlockEnabled', 'mediaBlockEnabled', 'mediaBlurEnabled', 'mediaInvertEnabled', 'mediaUniformEnabled', 'textSpoofingEnabled', 'darkModeEnabled', 'stableVolumeEnabled', 'monoAudioEnabled', 'smoothVolumeEnabled', 'forceRightClickEnabled', 'mediaHoverEnabled']);
     
     if (data.browserLockEnabled) {
       chrome.action.setBadgeText({ text: "🔒" });
@@ -67,8 +107,9 @@ async function updateBadge() {
     }
 
     const activeEmojis = [];
+    const mode = typeof data.adBlockMode === 'number' ? data.adBlockMode : (data.adBlockEnabled ? 1 : 0);
     
-    if (data.adBlockEnabled) activeEmojis.push("🛡️");
+    if (mode >= 1) activeEmojis.push("🛡️");
     if (data.mediaBlockEnabled) activeEmojis.push("🛑");
     if (data.mediaBlurEnabled) activeEmojis.push("💧");
     if (data.mediaInvertEnabled) activeEmojis.push("☯️");
@@ -94,32 +135,209 @@ async function updateBadge() {
 
 chrome.storage.onChanged.addListener((changes, namespace) => {
   if (namespace === 'local') {
-    if (changes.mediaBlockEnabled || changes.targetImgEnabled || changes.targetVidEnabled || changes.adBlockEnabled) {
+    if (changes.mediaBlockEnabled || changes.targetImgEnabled || changes.targetVidEnabled || changes.adBlockMode || changes.adBlockEnabled) {
       updateDNR();
     }
     updateBadge();
   }
 });
 
+// Real-time Instagram MP4 stream interceptor cache
+const instagramVideoCache = new Map();
+
+if (chrome.webRequest && chrome.webRequest.onBeforeRequest) {
+  chrome.webRequest.onBeforeRequest.addListener(
+    (details) => {
+      if (details.url && (details.url.includes(".mp4") || details.url.includes("bytestart") || details.url.includes("/v/t50.") || details.url.includes("/v/t51.")) && (details.url.includes("cdninstagram.com") || details.url.includes("fbcdn.net"))) {
+        let cleanUrl = details.url.replace(/&bytestart=\d+&byteend=\d+/, "").replace(/\?bytestart=\d+&byteend=\d+&?/, "?");
+        if (details.tabId >= 0) {
+          if (!instagramVideoCache.has(details.tabId)) {
+            instagramVideoCache.set(details.tabId, []);
+          }
+          const list = instagramVideoCache.get(details.tabId);
+          if (!list.includes(cleanUrl)) {
+            list.unshift(cleanUrl);
+            if (list.length > 40) list.pop();
+          }
+        }
+      }
+    },
+    { urls: ["*://*.cdninstagram.com/*", "*://*.fbcdn.net/*"] }
+  );
+
+  chrome.tabs.onRemoved.addListener((tabId) => {
+    instagramVideoCache.delete(tabId);
+  });
+}
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  // Query cached live video streams for current tab
+  if (message.action === "GET_CACHED_VIDEO_URL") {
+    const tabId = sender.tab?.id;
+    const list = tabId ? instagramVideoCache.get(tabId) || [] : [];
+    sendResponse({ success: true, urls: list, latest: list[0] || null });
+    return true;
+  }
+
+  // Shortcode to Numeric Media ID conversion
+  function shortcodeToMediaId(shortcode) {
+    if (!shortcode || typeof shortcode !== 'string') return null;
+    const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
+    let id = 0n;
+    for (let i = 0; i < shortcode.length; i++) {
+      const char = shortcode[i];
+      const val = BigInt(alphabet.indexOf(char));
+      if (val < 0n) return null;
+      id = id * 64n + val;
+    }
+    return id.toString();
+  }
+
+  // Live Captured Media Streams cache per tab
+  const RECENT_TAB_MEDIA = new Map();
+
+  try {
+    chrome.webRequest.onBeforeRequest.addListener(
+      (details) => {
+        if (!details.url || details.tabId < 0) return;
+        const url = details.url;
+        if ((url.includes('.mp4') || url.includes('/v/t50.') || url.includes('/v/t51.')) && 
+            (url.includes('fbcdn.net') || url.includes('cdninstagram.com'))) {
+          if (!url.includes('_dash_init') && !url.includes('dash_init')) {
+            const clean = url.replace(/&amp;/g, '&').replace(/\\u0026/g, '&').replace(/\\\//g, '/').replace(/["'\\].*$/, '').trim();
+            if (!RECENT_TAB_MEDIA.has(details.tabId)) {
+              RECENT_TAB_MEDIA.set(details.tabId, []);
+            }
+            const mediaList = RECENT_TAB_MEDIA.get(details.tabId);
+            if (!mediaList.some(m => m.url === clean)) {
+              mediaList.unshift({ url: clean, time: Date.now() });
+              if (mediaList.length > 50) mediaList.pop();
+            }
+          }
+        }
+      },
+      { urls: ["*://*.cdninstagram.com/*", "*://*.fbcdn.net/*", "*://*.instagram.com/*"] }
+    );
+
+    chrome.tabs.onRemoved.addListener((tabId) => {
+      RECENT_TAB_MEDIA.delete(tabId);
+    });
+  } catch (e) {
+    console.warn("webRequest listener setup error:", e);
+  }
+
+  // Query Instagram Web APIs with service worker privileges
+  if (message.action === "RESOLVE_REEL_URL") {
+    const shortcode = message.shortcode;
+    const mediaId = shortcodeToMediaId(shortcode);
+    const endpoints = [];
+
+    if (mediaId) {
+      endpoints.push(`https://www.instagram.com/api/v1/media/${mediaId}/info/`);
+      endpoints.push(`https://i.instagram.com/api/v1/media/${mediaId}/info/`);
+    }
+    endpoints.push(`https://www.instagram.com/graphql/query/?doc_id=8845758582119845&variables=${encodeURIComponent(JSON.stringify({ shortcode }))}`);
+    endpoints.push(`https://www.instagram.com/graphql/query/?doc_id=25531498899829322&variables=${encodeURIComponent(JSON.stringify({ shortcode }))}`);
+    endpoints.push(`https://www.instagram.com/p/${shortcode}/?__a=1&__d=dis`);
+    endpoints.push(`https://www.instagram.com/reel/${shortcode}/?__a=1&__d=dis`);
+
+    (async () => {
+      for (const ep of endpoints) {
+        try {
+          const res = await fetch(ep, {
+            headers: {
+              "x-ig-app-id": "936619743392459",
+              "x-asbd-id": "129477",
+              "x-requested-with": "XMLHttpRequest"
+            }
+          });
+          if (res.ok) {
+            const json = await res.json();
+            const item = json?.items?.[0] || json?.data?.xdt_shortcode_media || json?.data?.shortcode_media || json?.graphql?.shortcode_media;
+            if (item) {
+              if (item.video_versions && Array.isArray(item.video_versions) && item.video_versions.length) {
+                const sorted = [...item.video_versions].sort((a, b) => (b.width * b.height) - (a.width * a.height));
+                const best = sorted[0]?.url;
+                if (best) {
+                  sendResponse({ success: true, url: best, source: ep });
+                  return;
+                }
+              }
+              if (item.video_url && item.video_url.startsWith("http")) {
+                sendResponse({ success: true, url: item.video_url, source: ep });
+                return;
+              }
+            }
+          }
+        } catch(e) {}
+      }
+      sendResponse({ success: false, error: "No video stream resolved from background APIs" });
+    })();
+    return true;
+  }
+
+  // Retrieve captured media streams for the active tab
+  if (message.action === "GET_CAPTURED_MEDIA") {
+    const tabId = sender.tab?.id;
+    const list = (tabId && RECENT_TAB_MEDIA.get(tabId)) || [];
+    sendResponse({ success: true, media: list });
+    return true;
+  }
+
+  // Live Debug Logging Relay from Content Scripts
+  if (message.action === "AGENTIC_LOG") {
+    agenticLog(message.category || "CONTENT", ...(message.logs || []));
+    sendResponse({ success: true });
+    return true;
+  }
+
+  if (message.action === "GET_AGENTIC_LOGS") {
+    sendResponse({ success: true, logs: AGENTIC_LOGS });
+    return true;
+  }
+
   // Direct Instagram / Media Downloader API
   if (message.action === "DOWNLOAD_MEDIA") {
-    try {
+    let filename = message.filename || "instagram_media.mp4";
+    let rawUrl = message.url || "";
+    const cleanUrl = rawUrl.replace(/&amp;/g, '&').replace(/\\u0026/g, '&').replace(/\\\//g, '/').replace(/["'\\].*$/, '').trim();
+
+    agenticLog("DOWNLOAD", "Initiating download for:", cleanUrl, "Filename:", filename);
+
+    // If data URL, download directly
+    if (cleanUrl.startsWith("data:")) {
       chrome.downloads.download({
-        url: message.url,
-        filename: message.filename || "instagram_media",
+        url: cleanUrl,
+        filename: filename,
         conflictAction: "uniquify",
         saveAs: false
       }, (downloadId) => {
         if (chrome.runtime.lastError) {
+          agenticLog("DOWNLOAD_ERROR", chrome.runtime.lastError.message);
           sendResponse({ success: false, error: chrome.runtime.lastError.message });
         } else {
+          agenticLog("DOWNLOAD_SUCCESS", "Download ID:", downloadId);
           sendResponse({ success: true, downloadId });
         }
       });
-    } catch (err) {
-      sendResponse({ success: false, error: err.toString() });
+      return true;
     }
+
+    // Direct native browser download for signed CDN URLs
+    chrome.downloads.download({
+      url: cleanUrl,
+      filename: filename,
+      conflictAction: "uniquify",
+      saveAs: false
+    }, (downloadId) => {
+      if (chrome.runtime.lastError) {
+        agenticLog("DOWNLOAD_ERROR", chrome.runtime.lastError.message);
+        sendResponse({ success: false, error: chrome.runtime.lastError.message });
+      } else {
+        agenticLog("DOWNLOAD_SUCCESS", "Started Download ID:", downloadId);
+        sendResponse({ success: true, downloadId });
+      }
+    });
     return true;
   }
 

@@ -2,7 +2,7 @@
 
 **TabMaxxing** is the ultimate PowerTools & privacy utility suite for Chromium browsers. Max out your daily browsing stats with visual privacy (blur, block, pixelate, invert), audio leveling (stable volume compressor, mono downmix), 1-click live clipboard copying, Instagram high-res downloads (`insta-dl`), shoulder-surfing text spoofing, area snipping visual search, master password locks, and daily tab productivity tools.
 
-[Download the latest ZIP](https://github.com/rachit9876/media-blocker-chrome/archive/refs/heads/main.zip)
+[Download the latest ZIP](https://github.com/rachit9876/TabMaxxing/archive/refs/heads/main.zip)
 
 ## What's New
 

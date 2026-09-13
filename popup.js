@@ -2,6 +2,26 @@
 (function () {
   "use strict";
 
+  window.addEventListener('error', (e) => {
+    try {
+      chrome.runtime.sendMessage({
+        action: 'AGENTIC_LOG',
+        category: 'POPUP_ERROR',
+        logs: [`${e.message || 'Error'} at ${e.filename}:${e.lineno}:${e.colno}`]
+      });
+    } catch (_) {}
+  });
+
+  window.addEventListener('unhandledrejection', (e) => {
+    try {
+      chrome.runtime.sendMessage({
+        action: 'AGENTIC_LOG',
+        category: 'POPUP_UNHANDLED_REJECTION',
+        logs: [`${e.reason?.message || String(e.reason)}`]
+      });
+    } catch (_) {}
+  });
+
   const configMap = {
     mediaBlockEnabled: { color: "var(--block-accent)", labelPrefix: "BLOCK" },
     mediaBlurEnabled: { color: "var(--blur-accent)", labelPrefix: "BLUR" },
@@ -15,8 +35,7 @@
     darkModeEnabled: { color: "var(--dark-accent)", labelPrefix: "DARK MODE" },
     textSpoofingEnabled: { color: "var(--textspoof-accent)", labelPrefix: "TEXT SPOOF" },
     browserLockEnabled: { color: "var(--lock-accent)", labelPrefix: "LOCK" },
-    instaDlEnabled: { color: "var(--insta-accent)", labelPrefix: "INSTA DL" },
-    adBlockEnabled: { color: "var(--adblock-accent)", labelPrefix: "SHIELD" }
+    instaDlEnabled: { color: "var(--insta-accent)", labelPrefix: "INSTA DL" }
   };
 
   function updateSubUI(key, enabled) {
@@ -55,6 +74,42 @@
     if (card) {
       card.classList.toggle(`active-${key}`, enabled);
     }
+  }
+
+  const ADBLOCK_MODE_INFO = {
+    0: { label: "OFF", desc: "No Filtering", color: "var(--text-secondary)" },
+    1: { label: "BASIC (DNR)", desc: "DNR Network Rules", color: "#34d399" },
+    2: { label: "OPTIMAL", desc: "DNR + Specific Element Hiding", color: "#10b981" },
+    3: { label: "COMPLETE", desc: "DNR + Specific & Generic Cosmetic", color: "#059669" }
+  };
+
+  function updateAdBlockModeUI(mode) {
+    const m = Number(mode) || 0;
+    const info = ADBLOCK_MODE_INFO[m] || ADBLOCK_MODE_INFO[0];
+    
+    const card = document.getElementById('adBlockModeCard');
+    const label = document.getElementById('adBlockModeLabel');
+    const desc = document.getElementById('adBlockModeDesc');
+    
+    if (label) {
+      label.textContent = info.label;
+      label.style.color = info.color;
+    }
+    if (desc) {
+      desc.textContent = info.desc;
+    }
+    if (card) {
+      card.classList.remove('active-adBlockMode-1', 'active-adBlockMode-2', 'active-adBlockMode-3');
+      if (m >= 1) {
+        card.classList.add(`active-adBlockMode-${m}`);
+      }
+    }
+
+    const btns = document.querySelectorAll('#adBlockTierPills .adblock-tier-btn');
+    btns.forEach(btn => {
+      const btnMode = Number(btn.getAttribute('data-mode')) || 0;
+      btn.classList.toggle('active', btnMode === m);
+    });
   }
 
   async function fetchMediaCounts() {
@@ -313,6 +368,8 @@
 
       if (!isTabScoped) {
         Object.keys(state).forEach(key => updateSubUI(key, state[key]));
+        const mode = typeof state.adBlockMode === 'number' ? state.adBlockMode : (state.adBlockEnabled ? 1 : 0);
+        updateAdBlockModeUI(mode);
       }
     });
 
@@ -377,6 +434,17 @@
       });
     });
 
+    // AdBlock Mode Tier buttons click handlers
+    const adBlockTierBtns = document.querySelectorAll('#adBlockTierPills .adblock-tier-btn');
+    adBlockTierBtns.forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const targetMode = Number(btn.getAttribute('data-mode')) || 0;
+        updateAdBlockModeUI(targetMode);
+        chrome.storage.local.set({ adBlockMode: targetMode, adBlockEnabled: targetMode >= 1 });
+      });
+    });
+
     document.getElementById('settingsBtn').addEventListener('click', () => { chrome.runtime.openOptionsPage(); });
   }
 
@@ -389,6 +457,11 @@
           updateSubUI(key, changes[key].newValue);
         }
       });
+      if (changes.adBlockMode !== undefined) {
+        updateAdBlockModeUI(changes.adBlockMode.newValue);
+      } else if (changes.adBlockEnabled !== undefined) {
+        updateAdBlockModeUI(changes.adBlockEnabled.newValue ? 1 : 0);
+      }
     }
   });
 

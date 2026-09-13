@@ -1,3 +1,23 @@
+window.addEventListener('error', (e) => {
+  try {
+    chrome.runtime.sendMessage({
+      action: 'AGENTIC_LOG',
+      category: 'OPTIONS_ERROR',
+      logs: [`${e.message || 'Error'} at ${e.filename}:${e.lineno}:${e.colno}`]
+    });
+  } catch (_) {}
+});
+
+window.addEventListener('unhandledrejection', (e) => {
+  try {
+    chrome.runtime.sendMessage({
+      action: 'AGENTIC_LOG',
+      category: 'OPTIONS_UNHANDLED_REJECTION',
+      logs: [`${e.reason?.message || String(e.reason)}`]
+    });
+  } catch (_) {}
+});
+
 document.addEventListener('DOMContentLoaded', () => {
   const inputs = {
     targetImgEnabled: document.getElementById('targetImgEnabled'),
@@ -19,7 +39,7 @@ document.addEventListener('DOMContentLoaded', () => {
     domainLockEnabled: document.getElementById('domainLockEnabled'),
     instaDlEnabled: document.getElementById('instaDlEnabled'),
     instaDlCopyEnabled: document.getElementById('instaDlCopyEnabled'),
-    adBlockEnabled: document.getElementById('adBlockEnabled')
+    adBlockMode: document.getElementById('adBlockMode')
   };
   
   const historyContainer = document.getElementById('historyContainer');
@@ -87,7 +107,7 @@ document.addEventListener('DOMContentLoaded', () => {
       [middle[i], middle[j]] = [middle[j], middle[i]];
     }
 
-    if (middle.join("") === originalMiddle) {
+    if (middle.join("") === originalMiddle && middle[0] !== middle[middle.length - 1]) {
       [middle[0], middle[middle.length - 1]] = [middle[middle.length - 1], middle[0]];
     }
 
@@ -195,13 +215,15 @@ document.addEventListener('DOMContentLoaded', () => {
         inputs.domainLockEnabled.checked = state.domainLockEnabled || false;
       }
       if (inputs.instaDlEnabled) {
-        inputs.instaDlEnabled.checked = state.instaDlEnabled !== false;
+        inputs.instaDlEnabled.checked = Boolean(state.instaDlEnabled);
       }
       if (inputs.instaDlCopyEnabled) {
-        inputs.instaDlCopyEnabled.checked = state.instaDlCopyEnabled !== false;
+        inputs.instaDlCopyEnabled.checked = Boolean(state.instaDlCopyEnabled);
       }
-      if (inputs.adBlockEnabled) {
-        inputs.adBlockEnabled.checked = state.adBlockEnabled !== false;
+      if (inputs.adBlockMode) {
+        const mode = typeof state.adBlockMode === 'number' ? state.adBlockMode : (state.adBlockEnabled ? 1 : 0);
+        inputs.adBlockMode.value = String(mode);
+        updateAdBlockExplainer(mode);
       }
       
       updateIntensityLabel();
@@ -229,13 +251,38 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  const ADBLOCK_EXPLAINERS = {
+    0: { title: "0: Off (Disabled)", body: "Content blocking is completely disabled." },
+    1: { title: "1: Basic (DNR Only)", body: "Declarative network rules block ad/tracker requests natively at the network level with zero CPU overhead. No cosmetic page modifications." },
+    2: { title: "2: Optimal (+ Specific CSS)", body: "Network blocking + domain-specific cosmetic CSS element hiding. Cleanly removes ad containers and empty placeholders tailored for specific sites." },
+    3: { title: "3: Complete (+ Generic CSS)", body: "Complete protection matching uBO Lite: Network blocking + Specific element hiding + Generic element observation for full ad removal." }
+  };
+
+  function updateAdBlockExplainer(mode) {
+    const m = Number(mode) || 0;
+    const exp = ADBLOCK_EXPLAINERS[m] || ADBLOCK_EXPLAINERS[0];
+    const titleEl = document.getElementById('adBlockModeTitle');
+    const bodyEl = document.getElementById('adBlockModeBody');
+    if (titleEl) titleEl.textContent = exp.title + ':';
+    if (bodyEl) bodyEl.textContent = ' ' + exp.body;
+  }
+
   loadSettings();
 
   function updateSetting(key, value) {
     chrome.runtime.sendMessage({ type: "UPDATE_SETTING", key, value });
   }
 
-  ['targetImgEnabled', 'targetVidEnabled', 'forceRightClickEnabled', 'stableVolumeEnabled', 'monoAudioEnabled', 'smoothVolumeEnabled', 'darkModeEnabled', 'textSpoofingEnabled', 'domainLockEnabled', 'instaDlEnabled', 'instaDlCopyEnabled', 'adBlockEnabled'].forEach(key => {
+  if (inputs.adBlockMode) {
+    inputs.adBlockMode.addEventListener('change', (e) => {
+      const mode = parseInt(e.target.value, 10) || 0;
+      updateSetting('adBlockMode', mode);
+      updateSetting('adBlockEnabled', mode >= 1);
+      updateAdBlockExplainer(mode);
+    });
+  }
+
+  ['targetImgEnabled', 'targetVidEnabled', 'forceRightClickEnabled', 'stableVolumeEnabled', 'monoAudioEnabled', 'smoothVolumeEnabled', 'darkModeEnabled', 'textSpoofingEnabled', 'domainLockEnabled', 'instaDlEnabled', 'instaDlCopyEnabled'].forEach(key => {
     if (inputs[key]) {
       inputs[key].addEventListener('change', (e) => {
         updateSetting(key, e.target.checked);
@@ -336,8 +383,48 @@ document.addEventListener('DOMContentLoaded', () => {
     chrome.runtime.sendMessage({ type: "CLEAR_HISTORY" }, () => renderHistory([]));
   });
 
+  // Live Diagnostics & Dev Error Console
+  const logsContainer = document.getElementById('agenticLogsContainer');
+  const copyLogsBtn = document.getElementById('copyLogsBtn');
+  const clearLogsBtn = document.getElementById('clearLogsBtn');
+
+  function renderLogs(logs) {
+    if (!logsContainer) return;
+    if (!logs || !logs.length) {
+      logsContainer.textContent = "[Ready] No runtime errors recorded.";
+      logsContainer.style.color = '#818cf8';
+      return;
+    }
+    logsContainer.textContent = logs.join('\n');
+    logsContainer.style.color = logs.some(l => l.includes('ERROR') || l.includes('REJECTION')) ? '#f87171' : '#a5b4fc';
+  }
+
+  chrome.storage.local.get(['agenticDebugLogs'], (res) => {
+    renderLogs(res.agenticDebugLogs || []);
+  });
+
+  if (copyLogsBtn) {
+    copyLogsBtn.addEventListener('click', async () => {
+      const txt = logsContainer ? logsContainer.textContent : '';
+      await navigator.clipboard.writeText(txt);
+      copyLogsBtn.textContent = 'Copied!';
+      setTimeout(() => { copyLogsBtn.textContent = 'Copy All'; }, 1500);
+    });
+  }
+
+  if (clearLogsBtn) {
+    clearLogsBtn.addEventListener('click', () => {
+      chrome.storage.local.set({ agenticDebugLogs: [] }, () => {
+        renderLogs([]);
+      });
+    });
+  }
+
   chrome.storage.onChanged.addListener((changes, namespace) => {
     if (namespace === 'local') {
+      if (changes.agenticDebugLogs) {
+        renderLogs(changes.agenticDebugLogs.newValue || []);
+      }
       Object.keys(changes).forEach(key => {
         const newValue = changes[key].newValue;
         if (inputs[key] && !['browserLockPassword', 'browserLockPasswordConfirm'].includes(key)) {
