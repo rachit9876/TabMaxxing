@@ -464,7 +464,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 chrome.commands.onCommand.addListener(async (command) => {
   if (command === "custom-shortcut") {
     const data = await chrome.storage.local.get(DEFAULTS);
-    const action = data.shortcutAction;
+    const action = data.shortcutAction || "toggle_blur";
 
     if (action === "open_settings") {
       chrome.runtime.openOptionsPage();
@@ -483,20 +483,29 @@ chrome.commands.onCommand.addListener(async (command) => {
     const key = actionMap[action];
     if (!key) return;
 
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      if (tabs[0] && tabs[0].id) {
-        chrome.tabs.sendMessage(tabs[0].id, { type: "GET_PAGE_TAB_SCOPE" }, async (res) => {
-          if (!chrome.runtime.lastError && res && res.isScoped) {
-            const nextState = res.localState[key] !== undefined ? !res.localState[key] : !data[key];
-            chrome.tabs.sendMessage(tabs[0].id, { type: "UPDATE_PAGE_TAB_SETTING", key, value: nextState });
-          } else {
-            await chrome.storage.local.set({ [key]: !data[key] });
-          }
-        });
-      } else {
-        chrome.storage.local.set({ [key]: !data[key] });
+    try {
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (tab && tab.id) {
+        let res = null;
+        try {
+          res = await chrome.tabs.sendMessage(tab.id, { type: "GET_PAGE_TAB_SCOPE" });
+        } catch (_) {
+          // Content script may not be loaded or restricted URL; ignore and fall back to global
+        }
+
+        if (res && res.isScoped) {
+          const nextState = res.localState && res.localState[key] !== undefined ? !res.localState[key] : !data[key];
+          try {
+            await chrome.tabs.sendMessage(tab.id, { type: "UPDATE_PAGE_TAB_SETTING", key, value: nextState });
+          } catch (_) {}
+          return;
+        }
       }
-    });
+    } catch (_) {}
+
+    // Global toggle fallback
+    const nextVal = !Boolean(data[key]);
+    await chrome.storage.local.set({ [key]: nextVal });
   }
 });
 
