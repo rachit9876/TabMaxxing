@@ -19,11 +19,20 @@
   const applyCropBtn = document.getElementById("applyCropBtn");
   const cancelCropBtn = document.getElementById("cancelCropBtn");
 
+  // Chrome hard canvas limits: 16384px per side and ~268M px total area.
+  // Exceeding either silently yields a blank/broken canvas.
+  const MAX_CANVAS_SIDE = 16384;
+  const MAX_CANVAS_AREA = 268435456;
+
   let currentZoom = 1;
   let isFitMode = true;
   let pageTitle = "Webpage_Capture";
   let pageUrl = "";
-  let originalCanvasData = null; // Backup for Undo
+
+  // Stitch state kept for Undo (re-stitch from chunks instead of hoarding a
+  // multi-gigabyte getImageData() copy of the canvas in memory).
+  let originalPayload = null;
+  let effectiveDpr = 1;
 
   // Crop State
   let isCropping = false;
@@ -46,37 +55,32 @@
     });
   }
 
+  // Clamp the drawing scale so the final canvas always fits inside Chrome's
+  // canvas limits. Very long pages are downscaled instead of crashing.
+  function computeEffectiveDpr(dpr, viewportWidth, totalHeight) {
+    const w = Math.max(1, viewportWidth);
+    const h = Math.max(1, totalHeight);
+    let scale = dpr > 0 ? dpr : 1;
+    scale = Math.min(scale, MAX_CANVAS_SIDE / w, MAX_CANVAS_SIDE / h);
+    scale = Math.min(scale, Math.sqrt(MAX_CANVAS_AREA / (w * h)));
+    // Never upscale beyond the capture resolution, and keep a sane minimum.
+    return Math.max(0.1, Math.min(scale, dpr > 0 ? dpr : 1));
+  }
+
   async function stitchCanvas(payload) {
     try {
       const { chunks, viewportWidth, viewportHeight, totalHeight, dpr, title, url } = payload;
       pageTitle = (title || "capture").replace(/[^a-zA-Z0-9_-]/g, "_").substring(0, 50);
       pageUrl = url || "";
 
+      originalPayload = payload;
+      effectiveDpr = computeEffectiveDpr(dpr, viewportWidth, totalHeight);
+
       // Set Canvas Dimensions
-      canvas.width = Math.round(viewportWidth * dpr);
-      canvas.height = Math.round(totalHeight * dpr);
+      canvas.width = Math.round(viewportWidth * effectiveDpr);
+      canvas.height = Math.round(Math.max(totalHeight, viewportHeight) * effectiveDpr);
 
-      // Draw each slice
-      for (let i = 0; i < chunks.length; i++) {
-        const chunk = chunks[i];
-        const img = await loadImage(chunk.dataUrl);
-        const destY = Math.round(chunk.y * dpr);
-
-        ctx.drawImage(
-          img,
-          0,
-          0,
-          img.width,
-          img.height,
-          0,
-          destY,
-          img.width,
-          img.height
-        );
-      }
-
-      // Save original for Undo
-      saveOriginalBackup();
+      await drawChunks(payload);
 
       loadingWrap.style.display = "none";
       container.style.display = "block";
@@ -89,16 +93,27 @@
     }
   }
 
-  function saveOriginalBackup() {
-    originalCanvasData = {
-      width: canvas.width,
-      height: canvas.height,
-      data: ctx.getImageData(0, 0, canvas.width, canvas.height)
-    };
+  async function drawChunks(payload) {
+    const { chunks, viewportWidth, viewportHeight } = payload;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+
+    for (let i = 0; i < chunks.length; i++) {
+      const chunk = chunks[i];
+      const img = await loadImage(chunk.dataUrl);
+      const destY = Math.round(chunk.y * effectiveDpr);
+      const destW = Math.round(viewportWidth * effectiveDpr);
+      const destH = Math.round(viewportHeight * effectiveDpr);
+      ctx.drawImage(img, 0, 0, img.width, img.height, 0, destY, destW, destH);
+    }
   }
 
   function updateMetaLabel() {
-    metaLabel.textContent = `${canvas.width} × ${canvas.height} px • ${pageTitle}`;
+    const detail = effectiveDpr < (originalPayload?.dpr || effectiveDpr)
+      ? ` • scaled to fit ${effectiveDpr.toFixed(2)}x`
+      : "";
+    metaLabel.textContent = `${canvas.width} × ${canvas.height} px • ${pageTitle}${detail}`;
   }
 
   function applyZoom() {
@@ -276,24 +291,36 @@
     showToast("Screenshot cropped successfully! ✂️");
   });
 
-  // Undo / Reset Crop
-  undoCropBtn.addEventListener("click", () => {
-    if (!originalCanvasData) return;
+  // Undo / Reset Crop: re-stitch from the original capture chunks. This avoids
+  // keeping a full-size ImageData copy of a potentially enormous canvas.
+  undoCropBtn.addEventListener("click", async () => {
+    if (!originalPayload) return;
 
-    canvas.width = originalCanvasData.width;
-    canvas.height = originalCanvasData.height;
-    ctx.putImageData(originalCanvasData.data, 0, 0);
+    try {
+      undoCropBtn.disabled = true;
+      const { viewportWidth, totalHeight, dpr } = originalPayload;
+      effectiveDpr = computeEffectiveDpr(dpr, viewportWidth, totalHeight);
+      canvas.width = Math.round(viewportWidth * effectiveDpr);
+      canvas.height = Math.round(Math.max(totalHeight, viewportHeight) * effectiveDpr);
+      await drawChunks(originalPayload);
 
-    undoCropBtn.style.display = "none";
-    updateMetaLabel();
-    applyZoom();
+      undoCropBtn.style.display = "none";
+      updateMetaLabel();
+      applyZoom();
 
-    showToast("Restored original full page screenshot! ↩️");
+      showToast("Restored original full page screenshot! ↩️");
+    } catch (err) {
+      console.error("Undo restore failed:", err);
+      showToast("Could not restore original capture");
+    } finally {
+      undoCropBtn.disabled = false;
+    }
   });
 
   // Query background worker for the latest capture payload
   chrome.runtime.sendMessage({ action: "GET_LATEST_CAPTURE_PAYLOAD" }, (res) => {
-    if (res && res.payload) {
+    void chrome.runtime.lastError; // suppress unchecked-error spam
+    if (res && res.payload && Array.isArray(res.payload.chunks) && res.payload.chunks.length) {
       stitchCanvas(res.payload);
     } else {
       loadingWrap.innerHTML = `<span style="color: #ef4444;">No capture data found. Please trigger a new screenshot.</span>`;

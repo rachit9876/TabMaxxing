@@ -5,6 +5,10 @@
   if (window.__TABMAX_CAPTURE_RUNNING) return;
   window.__TABMAX_CAPTURE_RUNNING = true;
 
+  // Hard safety cap: pages longer than this would take minutes and produce a
+  // canvas Chrome cannot allocate anyway (max 16384px per side / ~268M px area).
+  const MAX_CHUNKS = 100;
+
   async function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
@@ -35,14 +39,17 @@
   async function captureFullPage() {
     const originalScrollY = window.scrollY;
     const originalScrollX = window.scrollX;
+    const originalScrollBehavior = document.documentElement.style.scrollBehavior;
 
-    // Inject capture styles if not present
+    // Inject capture styles if not present (CSS is also pre-injected by the
+    // popup / context-menu handler; the <link> requires capture.css to be in
+    // web_accessible_resources, which the fixed manifest now provides).
     if (!document.getElementById("__tabmax_capture_css__")) {
       const link = document.createElement("link");
       link.id = "__tabmax_capture_css__";
       link.rel = "stylesheet";
       link.href = chrome.runtime.getURL("capture.css");
-      document.head.appendChild(link);
+      (document.head || document.documentElement).appendChild(link);
     }
 
     const overlay = createProgressOverlay();
@@ -50,6 +57,11 @@
     // Hide scrollbars during capture
     document.documentElement.classList.add("tabmax-hide-scrollbars");
     document.body.classList.add("tabmax-hide-scrollbars");
+
+    // Disable smooth scrolling: sites with `scroll-behavior: smooth` animate
+    // scrollTo() over hundreds of ms, so the 140ms wait would capture a
+    // half-scrolled viewport and corrupt the stitch.
+    document.documentElement.style.scrollBehavior = "auto";
 
     // Find fixed/sticky elements to avoid duplication during scrolling
     const fixedElements = Array.from(document.querySelectorAll("*")).filter(el => {
@@ -74,8 +86,20 @@
     let currentY = 0;
     let chunkIndex = 0;
 
+    function restorePageState() {
+      fixedElements.forEach(el => el.classList.remove("tabmax-hide-sticky"));
+      document.documentElement.classList.remove("tabmax-hide-scrollbars");
+      document.body.classList.remove("tabmax-hide-scrollbars");
+      document.documentElement.style.scrollBehavior = originalScrollBehavior;
+      window.scrollTo(originalScrollX, originalScrollY);
+    }
+
     try {
       while (currentY < totalHeight) {
+        if (chunkIndex >= MAX_CHUNKS) {
+          throw new Error(`Page is too long to capture (${MAX_CHUNKS} viewport limit reached).`);
+        }
+
         // Scroll to position
         window.scrollTo(0, currentY);
 
@@ -90,22 +114,34 @@
         // Actual scroll position after browser clamping
         const actualY = window.scrollY;
 
+        // Skip duplicate slice when the page bottom was already reached
+        if (chunks.length && actualY <= chunks[chunks.length - 1].y) {
+          break;
+        }
+
         // Temporarily hide the progress overlay so it is NOT captured in the screenshot
         overlay.style.display = "none";
 
         // Capture visible slice via background service worker
         const res = await new Promise(resolve => {
-          chrome.runtime.sendMessage({ action: "CAPTURE_VISIBLE_TAB_SLICE" }, resolve);
+          try {
+            chrome.runtime.sendMessage({ action: "CAPTURE_VISIBLE_TAB_SLICE" }, (response) => {
+              void chrome.runtime.lastError; // suppress unchecked-error spam
+              resolve(response);
+            });
+          } catch (err) {
+            resolve(null);
+          }
         });
 
         // Restore overlay immediately for user progress visibility
         overlay.style.display = "flex";
 
         if (!res || !res.dataUrl) {
-          throw new Error(res?.error || "Capture slice failed");
+          throw new Error(res?.error || "Capture slice failed (the active tab may restrict screenshots).");
         }
 
-        const isLastChunk = (currentY + viewportHeight >= totalHeight) || (actualY + viewportHeight >= totalHeight);
+        const isLastChunk = (actualY + viewportHeight >= totalHeight) || (currentY + viewportHeight >= totalHeight);
 
         chunks.push({
           dataUrl: res.dataUrl,
@@ -127,10 +163,7 @@
       await sleep(100);
 
       // Restore DOM state
-      fixedElements.forEach(el => el.classList.remove("tabmax-hide-sticky"));
-      document.documentElement.classList.remove("tabmax-hide-scrollbars");
-      document.body.classList.remove("tabmax-hide-scrollbars");
-      window.scrollTo(originalScrollX, originalScrollY);
+      restorePageState();
       overlay.remove();
       window.__TABMAX_CAPTURE_RUNNING = false;
 
@@ -150,10 +183,7 @@
 
     } catch (err) {
       console.error("TabMaxxing Capture Error:", err);
-      fixedElements.forEach(el => el.classList.remove("tabmax-hide-sticky"));
-      document.documentElement.classList.remove("tabmax-hide-scrollbars");
-      document.body.classList.remove("tabmax-hide-scrollbars");
-      window.scrollTo(originalScrollX, originalScrollY);
+      restorePageState();
       if (overlay) overlay.remove();
       window.__TABMAX_CAPTURE_RUNNING = false;
       alert(`TabMaxxing Full Page Capture: ${err.message || "Failed to capture page."}`);

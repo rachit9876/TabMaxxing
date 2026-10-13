@@ -11,6 +11,20 @@
     "ResizeObserver loop limit exceeded"
   ];
 
+  // Rate-limit the relay: this script runs in EVERY frame of every page, so
+  // unthrottled forwarding of page errors floods chrome.storage with noise.
+  let relayedErrorCount = 0;
+  let relayGateOpen = true;
+  function relayError(category, text) {
+    if (!relayGateOpen || relayedErrorCount >= 20) return;
+    relayedErrorCount++;
+    relayGateOpen = false;
+    setTimeout(() => { relayGateOpen = true; }, 2000);
+    try {
+      chrome.runtime.sendMessage({ action: 'AGENTIC_LOG', category, logs: [text] });
+    } catch (_) {}
+  }
+
   window.addEventListener('error', (e) => {
     try {
       const msg = e.message || '';
@@ -18,11 +32,7 @@
       // If error is from an external 3rd-party script unrelated to tabmaxxing or page DOM
       if (!msg && !e.filename) return;
 
-      chrome.runtime.sendMessage({
-        action: 'AGENTIC_LOG',
-        category: 'PAGE_ERROR',
-        logs: [`[${location.hostname}] ${msg || 'Error'} at ${e.filename || 'inline'}:${e.lineno || 0}:${e.colno || 0}`]
-      });
+      relayError('PAGE_ERROR', `[${location.hostname}] ${msg || 'Error'} at ${e.filename || 'inline'}:${e.lineno || 0}:${e.colno || 0}`);
     } catch (_) {}
   });
 
@@ -31,11 +41,7 @@
       const reasonMsg = e.reason?.message || String(e.reason || '');
       if (BENIGN_ERRORS.some(b => reasonMsg.includes(b))) return;
 
-      chrome.runtime.sendMessage({
-        action: 'AGENTIC_LOG',
-        category: 'PAGE_UNHANDLED_REJECTION',
-        logs: [`[${location.hostname}] ${reasonMsg}`]
-      });
+      relayError('PAGE_UNHANDLED_REJECTION', `[${location.hostname}] ${reasonMsg}`);
     } catch (_) {}
   });
 
@@ -222,15 +228,23 @@
       processedMedia.set(mediaEl, audioNodes);
       updateEQNodes(audioNodes);
 
-      const cleanupMediaAudio = () => {
+      // NOTE: Do NOT disconnect the graph on 'emptied'/'error'.
+      // createMediaElementSource() permanently reroutes the element's audio
+      // through Web Audio. Disconnecting the source/fadeGain there produced
+      // PERMANENT SILENCE after a source change (next track in a playlist,
+      // next reel, ad swap) because processedMedia (WeakMap) still held the
+      // element and attachAudioProcessing() refused to rebuild the graph.
+      // The nodes survive source changes, so we simply keep them connected.
+      // Defensively re-link the output in case anything was disconnected:
+      const ensureGraphConnected = () => {
         try {
-          fadeGain.disconnect();
-          source.disconnect();
-          monoNode.disconnect();
+          const ctxTime = audioCtx ? audioCtx.currentTime : 0;
+          fadeGain.gain.cancelScheduledValues(ctxTime);
+          fadeGain.gain.setValueAtTime(fadeGain.gain.value, ctxTime);
+          fadeGain.connect(audioCtx.destination);
         } catch (_) {}
       };
-      mediaEl.addEventListener('emptied', cleanupMediaAudio, { once: true });
-      mediaEl.addEventListener('error', cleanupMediaAudio, { once: true });
+      mediaEl.addEventListener('play', ensureGraphConnected);
     } catch (e) { }
   }
 
@@ -641,7 +655,8 @@
     else if (key === "smoothVolumeEnabled") { toggleSmoothVolumeLive(value); }
     else if (key === "audioEqMode") { audioEqMode = value; document.querySelectorAll('video, audio').forEach(el => updateEQNodes(processedMedia.get(el))); }
     else if (key === "audioLufs") { 
-        currentAudioLufs = parseInt(value, 10) || -12; 
+        const parsed = Number(value);
+        currentAudioLufs = Number.isFinite(parsed) && parsed <= 0 ? parsed : -12; 
         document.querySelectorAll('video, audio').forEach(el => {
             const nodes = processedMedia.get(el);
             if (nodes && nodes.compressor && audioCtx) {
@@ -677,7 +692,15 @@
     }
   }
 
+  // Lock overlays must only be injected into the TOP frame. With
+  // all_frames:true, every <iframe> otherwise renders its own full-screen
+  // lock overlay, producing stacked/interfering lock screens.
+  function isTopFrame() {
+    try { return window.top === window; } catch (_) { return false; }
+  }
+
   function showDomainLockScreen(domain) {
+    if (!isTopFrame()) return;
     if (document.getElementById('mb-domain-lock') || document.getElementById('mb-lock-screen')) return;
     
     const overlay = document.createElement('div');
@@ -735,6 +758,7 @@
   }
 
   function showLockScreen() {
+    if (!isTopFrame()) return;
     if (document.getElementById('mb-lock-screen')) return;
     const overlay = document.createElement('div');
     overlay.id = 'mb-lock-screen';

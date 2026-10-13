@@ -140,7 +140,8 @@
     const statusText = document.getElementById('shortenStatusLabel');
 
     btn.addEventListener('click', async () => {
-      if (statusText.textContent === 'GENERATING...') return;
+      // Double-submit guard (case must match the value set below)
+      if (statusText.textContent === 'Generating...') return;
 
       try {
         statusText.textContent = 'Generating...';
@@ -162,12 +163,17 @@
             return;
           }
 
-          if (data.status === 200) {
-            await navigator.clipboard.writeText(data.shorturl);
-            statusText.textContent = 'Copied Link!';
-            statusText.style.color = '#10b981';
+          if (data.status === 200 && data.shorturl) {
+            try {
+              await navigator.clipboard.writeText(data.shorturl);
+              statusText.textContent = 'Copied Link!';
+              statusText.style.color = '#10b981';
+            } catch (_) {
+              statusText.textContent = data.shorturl;
+              statusText.style.color = '#10b981';
+            }
           } else {
-            statusText.textContent = `Error ${data.status}`;
+            statusText.textContent = `Error ${data.status || '?'}`;
             statusText.style.color = '#ff3b3b';
           }
         });
@@ -255,9 +261,13 @@
 
   function sendSettingUpdate(key, value) {
     if (isTabScoped && currentActiveTabId) {
-      chrome.tabs.sendMessage(currentActiveTabId, { type: "UPDATE_PAGE_TAB_SETTING", key, value });
+      chrome.tabs.sendMessage(currentActiveTabId, { type: "UPDATE_PAGE_TAB_SETTING", key, value }, () => {
+        void chrome.runtime.lastError; // tab may have navigated away
+      });
     } else {
-      chrome.runtime.sendMessage({ type: "UPDATE_SETTING", key, value });
+      chrome.runtime.sendMessage({ type: "UPDATE_SETTING", key, value }, () => {
+        void chrome.runtime.lastError;
+      });
     }
   }
 
@@ -341,7 +351,7 @@
     }
 
     chrome.runtime.sendMessage({ type: "GET_ALL_STATE" }, (state) => {
-      if (!state) return;
+      if (chrome.runtime.lastError || !state) return;
       
       if (state.browserLockEnabled) {
         lockScreen.style.display = 'flex';
@@ -360,9 +370,12 @@
              lockCard.style.cursor = 'not-allowed';
              lockCard.style.opacity = '0.6';
            }
-           document.getElementById('browserLockEnabledTrack').style.opacity = '0.4';
-           lockLabel.textContent = "PASSWORD REQUIRED";
-           lockLabel.style.color = "var(--text-secondary)";
+           const lockTrack = document.getElementById('browserLockEnabledTrack');
+           if (lockTrack) lockTrack.style.opacity = '0.4';
+           if (lockLabel) {
+             lockLabel.textContent = "PASSWORD REQUIRED";
+             lockLabel.style.color = "var(--text-secondary)";
+           }
         }
       }
 

@@ -22,6 +22,7 @@
           startObserver();
           scanPage();
         } else {
+          stopObserver();
           removeAllInjectedUI();
         }
       }
@@ -919,7 +920,7 @@
   }
 
   function removeAllInjectedUI() {
-    document.querySelectorAll(".insta-dl-bar, .insta-dl-story-bar").forEach(el => el.remove());
+    document.querySelectorAll(".insta-dl-bar, .insta-dl-story-bar, .insta-dl-reel-bar").forEach(el => el.remove());
     document.querySelectorAll("[data-insta-dl-processed]").forEach(el => el.removeAttribute("data-insta-dl-processed"));
   }
 
@@ -933,6 +934,7 @@
   // Debounced Mutation Observer & URL Change Poller for SPAs
   let scanTimer = null;
   let observer = null;
+  let urlPollInterval = null;
   let lastUrl = window.location.href;
 
   function startObserver() {
@@ -947,8 +949,10 @@
       subtree: true
     });
 
-    // Handle Instagram SPA URL changes
-    setInterval(() => {
+    // Handle Instagram SPA URL changes (interval is tracked so it can be
+    // cleared when the feature is disabled instead of polling forever)
+    urlPollInterval = setInterval(() => {
+      if (!isEnabled) return;
       if (window.location.href !== lastUrl) {
         lastUrl = window.location.href;
         setTimeout(scanPage, 100);
@@ -956,6 +960,21 @@
     }, 500);
 
     scanPage();
+  }
+
+  function stopObserver() {
+    if (observer) {
+      observer.disconnect();
+      observer = null;
+    }
+    if (urlPollInterval) {
+      clearInterval(urlPollInterval);
+      urlPollInterval = null;
+    }
+    if (scanTimer) {
+      clearTimeout(scanTimer);
+      scanTimer = null;
+    }
   }
 
 })();

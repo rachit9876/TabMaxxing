@@ -20,8 +20,38 @@ const ENGINES = {
 
 let latestCapturePayload = null;
 
+// Persist the capture payload so the viewer can still read it after the MV3
+// service worker has been terminated and restarted (storage.session survives
+// SW restarts and is cleared when the browser closes). The capture viewer is
+// an extension page (trusted context), so the default access level applies.
+const CAPTURE_PAYLOAD_KEY = "latestCapturePayload";
+
+async function saveCapturePayload(payload) {
+  latestCapturePayload = payload;
+  try {
+    if (chrome.storage.session) {
+      await chrome.storage.session.set({ [CAPTURE_PAYLOAD_KEY]: payload });
+    }
+  } catch (err) {
+    // Payload can exceed the session quota on very long pages; the in-memory
+    // copy above still covers the normal "viewer opens right away" flow.
+    agenticLog("CAPTURE", "storage.session write failed (payload too large?), relying on in-memory copy", String(err));
+  }
+}
+
+async function loadCapturePayload() {
+  try {
+    if (chrome.storage.session) {
+      const res = await chrome.storage.session.get(CAPTURE_PAYLOAD_KEY);
+      if (res && res[CAPTURE_PAYLOAD_KEY]) return res[CAPTURE_PAYLOAD_KEY];
+    }
+  } catch (_) {}
+  return latestCapturePayload;
+}
+
 // Global Agentic Live Debug Tunnel & Logger
 const AGENTIC_LOGS = [];
+let agenticLogFlushTimer = null;
 function agenticLog(category, ...args) {
   const entry = `[${new Date().toISOString()}] [${category}] ${args.map(a => {
     if (a instanceof Error) return `${a.message}\n${a.stack}`;
@@ -32,7 +62,13 @@ function agenticLog(category, ...args) {
   }).join(' ')}`;
   AGENTIC_LOGS.unshift(entry);
   if (AGENTIC_LOGS.length > 250) AGENTIC_LOGS.pop();
-  chrome.storage.local.set({ agenticDebugLogs: AGENTIC_LOGS });
+  // Debounced persistence: busy pages can emit dozens of errors per second and
+  // writing chrome.storage on each one starves the storage backend.
+  if (agenticLogFlushTimer) return;
+  agenticLogFlushTimer = setTimeout(() => {
+    agenticLogFlushTimer = null;
+    chrome.storage.local.set({ agenticDebugLogs: AGENTIC_LOGS }).catch(() => {});
+  }, 1000);
 }
 
 self.addEventListener('error', (e) => {
@@ -52,12 +88,22 @@ async function hashPassword(password) {
 }
 
 async function init() {
-  const data = await chrome.storage.local.get(DEFAULTS);
-  // Migrate legacy adBlockEnabled if present
-  if (typeof data.adBlockMode !== 'number') {
-    data.adBlockMode = data.adBlockEnabled ? 1 : 0;
-  }
-  await chrome.storage.local.set(data);
+  // Legacy migration: adBlockEnabled (boolean) -> adBlockMode (number).
+  // Must inspect raw storage WITHOUT defaults, otherwise adBlockMode always
+  // looks present (as the default 0) and the migration never runs.
+  try {
+    const stored = await chrome.storage.local.get(null);
+    const patch = {};
+    if (typeof stored.adBlockMode !== "number" && "adBlockEnabled" in stored) {
+      patch.adBlockMode = stored.adBlockEnabled ? 1 : 0;
+    }
+    if (typeof stored.adBlockMode !== "number" && !("adBlockEnabled" in stored)) {
+      patch.adBlockMode = 0;
+    }
+    if (Object.keys(patch).length) {
+      await chrome.storage.local.set(patch);
+    }
+  } catch (_) {}
   await updateDNR();
   await updateBadge();
 }
@@ -101,8 +147,9 @@ async function updateBadge() {
     const data = await chrome.storage.local.get(['browserLockEnabled', 'adBlockMode', 'adBlockEnabled', 'mediaBlockEnabled', 'mediaBlurEnabled', 'mediaInvertEnabled', 'mediaUniformEnabled', 'textSpoofingEnabled', 'darkModeEnabled', 'stableVolumeEnabled', 'monoAudioEnabled', 'smoothVolumeEnabled', 'forceRightClickEnabled', 'mediaHoverEnabled']);
     
     if (data.browserLockEnabled) {
-      chrome.action.setBadgeText({ text: "🔒" });
-      chrome.action.setBadgeBackgroundColor({ color: [0, 0, 0, 0] }); 
+      // Chrome badges do not render color emoji reliably; use plain text.
+      chrome.action.setBadgeText({ text: "LOCK" });
+      chrome.action.setBadgeBackgroundColor({ color: [220, 38, 38, 255] });
       return;
     }
 
@@ -125,7 +172,7 @@ async function updateBadge() {
 
     const text = activeEmojis.slice(0, 4).join("");
 
-    chrome.action.setBadgeText({ text });
+    chrome.action.setBadgeText({ text: text || "" });
     chrome.action.setBadgeBackgroundColor({ color: [0, 0, 0, 0] });
     
   } catch (error) {
@@ -142,88 +189,98 @@ chrome.storage.onChanged.addListener((changes, namespace) => {
   }
 });
 
-// Real-time Instagram MP4 stream interceptor cache
+// --- Instagram media stream interception (registered ONCE at top level) ---
+// NOTE: These MUST live at the top level of the service worker. Registering
+// webRequest listeners inside onMessage would (a) leak a new listener on every
+// message and (b) point GET_CAPTURED_MEDIA at a fresh, always-empty Map.
+
+// Live MP4 progressive streams per tab (used by insta-dl resolution layer)
 const instagramVideoCache = new Map();
+// Recent captured media entries per tab ({url, time})
+const RECENT_TAB_MEDIA = new Map();
+
+function isInstagramMediaUrl(url) {
+  return Boolean(
+    url &&
+    (url.includes(".mp4") || url.includes("/v/t50.") || url.includes("/v/t51.")) &&
+    (url.includes("cdninstagram.com") || url.includes("fbcdn.net"))
+  );
+}
 
 if (chrome.webRequest && chrome.webRequest.onBeforeRequest) {
   chrome.webRequest.onBeforeRequest.addListener(
     (details) => {
-      if (details.url && (details.url.includes(".mp4") || details.url.includes("bytestart") || details.url.includes("/v/t50.") || details.url.includes("/v/t51.")) && (details.url.includes("cdninstagram.com") || details.url.includes("fbcdn.net"))) {
-        let cleanUrl = details.url.replace(/&bytestart=\d+&byteend=\d+/, "").replace(/\?bytestart=\d+&byteend=\d+&?/, "?");
-        if (details.tabId >= 0) {
-          if (!instagramVideoCache.has(details.tabId)) {
-            instagramVideoCache.set(details.tabId, []);
-          }
-          const list = instagramVideoCache.get(details.tabId);
-          if (!list.includes(cleanUrl)) {
-            list.unshift(cleanUrl);
-            if (list.length > 40) list.pop();
-          }
+      if (!details.url || details.tabId < 0) return;
+      if (!isInstagramMediaUrl(details.url)) return;
+
+      // Normalize signed/escaped CDN URLs and strip range params so the same
+      // stream is not cached dozens of times under different byte ranges.
+      const cleanUrl = details.url
+        .replace(/&amp;/g, '&')
+        .replace(/\\u0026/g, '&')
+        .replace(/\\\//g, '/')
+        .replace(/["'\\].*$/, '')
+        .replace(/&bytestart=\d+&byteend=\d+/, '')
+        .replace(/\?bytestart=\d+&byteend=\d+&?/, '?')
+        .trim();
+
+      // Progressive video cache (used by GET_CAPTURED_MEDIA / insta-dl layer 5)
+      if (!RECENT_TAB_MEDIA.has(details.tabId)) {
+        RECENT_TAB_MEDIA.set(details.tabId, []);
+      }
+      const mediaList = RECENT_TAB_MEDIA.get(details.tabId);
+      if (!mediaList.some(m => m.url === cleanUrl)) {
+        mediaList.unshift({ url: cleanUrl, time: Date.now() });
+        if (mediaList.length > 50) mediaList.pop();
+      }
+
+      // MP4-only cache (deduped, kept for quick "latest" lookups)
+      if (cleanUrl.includes(".mp4") || cleanUrl.includes("bytestart")) {
+        if (!instagramVideoCache.has(details.tabId)) {
+          instagramVideoCache.set(details.tabId, []);
+        }
+        const list = instagramVideoCache.get(details.tabId);
+        if (!list.includes(cleanUrl)) {
+          list.unshift(cleanUrl);
+          if (list.length > 40) list.pop();
         }
       }
     },
-    { urls: ["*://*.cdninstagram.com/*", "*://*.fbcdn.net/*"] }
+    { urls: ["*://*.cdninstagram.com/*", "*://*.fbcdn.net/*", "*://*.instagram.com/*"] }
   );
 
   chrome.tabs.onRemoved.addListener((tabId) => {
     instagramVideoCache.delete(tabId);
+    RECENT_TAB_MEDIA.delete(tabId);
   });
 }
 
+// Shortcode to Numeric Media ID conversion (base64-ish Instagram alphabet)
+function shortcodeToMediaId(shortcode) {
+  if (!shortcode || typeof shortcode !== 'string') return null;
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
+  let id = 0n;
+  for (let i = 0; i < shortcode.length; i++) {
+    const val = BigInt(alphabet.indexOf(shortcode[i]));
+    if (val < 0n) return null;
+    id = id * 64n + val;
+  }
+  return id.toString();
+}
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  // Wrap sendResponse so a closed message port (popup closed, tab navigated)
+  // never throws "Attempting to use a disconnected port object".
+  const safeSendResponse = (payload) => {
+    try { sendResponse(payload); } catch (_) {}
+  };
+
   // Query cached live video streams for current tab
   if (message.action === "GET_CACHED_VIDEO_URL") {
     const tabId = sender.tab?.id;
-    const list = tabId ? instagramVideoCache.get(tabId) || [] : [];
-    sendResponse({ success: true, urls: list, latest: list[0] || null });
+    const list = (tabId && instagramVideoCache.get(tabId)) || [];
+    safeSendResponse({ success: true, urls: list, latest: list[0] || null });
     return true;
-  }
-
-  // Shortcode to Numeric Media ID conversion
-  function shortcodeToMediaId(shortcode) {
-    if (!shortcode || typeof shortcode !== 'string') return null;
-    const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
-    let id = 0n;
-    for (let i = 0; i < shortcode.length; i++) {
-      const char = shortcode[i];
-      const val = BigInt(alphabet.indexOf(char));
-      if (val < 0n) return null;
-      id = id * 64n + val;
-    }
-    return id.toString();
-  }
-
-  // Live Captured Media Streams cache per tab
-  const RECENT_TAB_MEDIA = new Map();
-
-  try {
-    chrome.webRequest.onBeforeRequest.addListener(
-      (details) => {
-        if (!details.url || details.tabId < 0) return;
-        const url = details.url;
-        if ((url.includes('.mp4') || url.includes('/v/t50.') || url.includes('/v/t51.')) && 
-            (url.includes('fbcdn.net') || url.includes('cdninstagram.com'))) {
-          if (!url.includes('_dash_init') && !url.includes('dash_init')) {
-            const clean = url.replace(/&amp;/g, '&').replace(/\\u0026/g, '&').replace(/\\\//g, '/').replace(/["'\\].*$/, '').trim();
-            if (!RECENT_TAB_MEDIA.has(details.tabId)) {
-              RECENT_TAB_MEDIA.set(details.tabId, []);
-            }
-            const mediaList = RECENT_TAB_MEDIA.get(details.tabId);
-            if (!mediaList.some(m => m.url === clean)) {
-              mediaList.unshift({ url: clean, time: Date.now() });
-              if (mediaList.length > 50) mediaList.pop();
-            }
-          }
-        }
-      },
-      { urls: ["*://*.cdninstagram.com/*", "*://*.fbcdn.net/*", "*://*.instagram.com/*"] }
-    );
-
-    chrome.tabs.onRemoved.addListener((tabId) => {
-      RECENT_TAB_MEDIA.delete(tabId);
-    });
-  } catch (e) {
-    console.warn("webRequest listener setup error:", e);
   }
 
   // Query Instagram Web APIs with service worker privileges
@@ -259,19 +316,19 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 const sorted = [...item.video_versions].sort((a, b) => (b.width * b.height) - (a.width * a.height));
                 const best = sorted[0]?.url;
                 if (best) {
-                  sendResponse({ success: true, url: best, source: ep });
+                  safeSendResponse({ success: true, url: best, source: ep });
                   return;
                 }
               }
               if (item.video_url && item.video_url.startsWith("http")) {
-                sendResponse({ success: true, url: item.video_url, source: ep });
+                safeSendResponse({ success: true, url: item.video_url, source: ep });
                 return;
               }
             }
           }
         } catch(e) {}
       }
-      sendResponse({ success: false, error: "No video stream resolved from background APIs" });
+      safeSendResponse({ success: false, error: "No video stream resolved from background APIs" });
     })();
     return true;
   }
@@ -280,19 +337,19 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === "GET_CAPTURED_MEDIA") {
     const tabId = sender.tab?.id;
     const list = (tabId && RECENT_TAB_MEDIA.get(tabId)) || [];
-    sendResponse({ success: true, media: list });
+    safeSendResponse({ success: true, media: list });
     return true;
   }
 
   // Live Debug Logging Relay from Content Scripts
   if (message.action === "AGENTIC_LOG") {
     agenticLog(message.category || "CONTENT", ...(message.logs || []));
-    sendResponse({ success: true });
+    safeSendResponse({ success: true });
     return true;
   }
 
   if (message.action === "GET_AGENTIC_LOGS") {
-    sendResponse({ success: true, logs: AGENTIC_LOGS });
+    safeSendResponse({ success: true, logs: AGENTIC_LOGS });
     return true;
   }
 
@@ -304,40 +361,54 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
     agenticLog("DOWNLOAD", "Initiating download for:", cleanUrl, "Filename:", filename);
 
-    // If data URL, download directly
-    if (cleanUrl.startsWith("data:")) {
+    const startDownload = (downloadUrl) => {
       chrome.downloads.download({
-        url: cleanUrl,
+        url: downloadUrl,
         filename: filename,
         conflictAction: "uniquify",
         saveAs: false
       }, (downloadId) => {
         if (chrome.runtime.lastError) {
           agenticLog("DOWNLOAD_ERROR", chrome.runtime.lastError.message);
-          sendResponse({ success: false, error: chrome.runtime.lastError.message });
+          safeSendResponse({ success: false, error: chrome.runtime.lastError.message });
         } else {
-          agenticLog("DOWNLOAD_SUCCESS", "Download ID:", downloadId);
-          sendResponse({ success: true, downloadId });
+          agenticLog("DOWNLOAD_SUCCESS", "Started Download ID:", downloadId);
+          safeSendResponse({ success: true, downloadId });
         }
       });
+    };
+
+    // data: URLs larger than ~2MB are rejected by the downloads API.
+    // Convert them to an in-memory blob URL first, then revoke it after start.
+    if (cleanUrl.startsWith("data:")) {
+      (async () => {
+        try {
+          const blob = await (await fetch(cleanUrl)).blob();
+          const blobUrl = URL.createObjectURL(blob);
+          chrome.downloads.download({
+            url: blobUrl,
+            filename: filename,
+            conflictAction: "uniquify",
+            saveAs: false
+          }, (downloadId) => {
+            setTimeout(() => { try { URL.revokeObjectURL(blobUrl); } catch (_) {} }, 120000);
+            if (chrome.runtime.lastError) {
+              agenticLog("DOWNLOAD_ERROR", chrome.runtime.lastError.message);
+              safeSendResponse({ success: false, error: chrome.runtime.lastError.message });
+            } else {
+              agenticLog("DOWNLOAD_SUCCESS", "Blob download ID:", downloadId);
+              safeSendResponse({ success: true, downloadId });
+            }
+          });
+        } catch (err) {
+          safeSendResponse({ success: false, error: `Blob conversion failed: ${err}` });
+        }
+      })();
       return true;
     }
 
     // Direct native browser download for signed CDN URLs
-    chrome.downloads.download({
-      url: cleanUrl,
-      filename: filename,
-      conflictAction: "uniquify",
-      saveAs: false
-    }, (downloadId) => {
-      if (chrome.runtime.lastError) {
-        agenticLog("DOWNLOAD_ERROR", chrome.runtime.lastError.message);
-        sendResponse({ success: false, error: chrome.runtime.lastError.message });
-      } else {
-        agenticLog("DOWNLOAD_SUCCESS", "Started Download ID:", downloadId);
-        sendResponse({ success: true, downloadId });
-      }
-    });
+    startDownload(cleanUrl);
     return true;
   }
 
@@ -350,11 +421,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       })
       .then(blob => {
         const reader = new FileReader();
-        reader.onloadend = () => sendResponse({ success: true, dataUrl: reader.result, type: blob.type });
-        reader.onerror = () => sendResponse({ success: false, error: "Reader error" });
+        reader.onloadend = () => safeSendResponse({ success: true, dataUrl: reader.result, type: blob.type });
+        reader.onerror = () => safeSendResponse({ success: false, error: "Reader error" });
         reader.readAsDataURL(blob);
       })
-      .catch(err => sendResponse({ success: false, error: err.toString() }));
+      .catch(err => safeSendResponse({ success: false, error: err.toString() }));
     return true;
   }
 
@@ -362,8 +433,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === "capture_visible_tab") {
     const windowId = sender.tab?.windowId ?? chrome.windows.WINDOW_ID_CURRENT;
     chrome.tabs.captureVisibleTab(windowId, { format: 'png' })
-      .then(dataUrl => sendResponse({ dataUrl }))
-      .catch(err => sendResponse({ error: err ? err.message : "Capture failed" }));
+      .then(dataUrl => safeSendResponse({ dataUrl }))
+      .catch(err => safeSendResponse({ error: err ? err.message : "Capture failed" }));
     return true;
   }
 
@@ -371,22 +442,23 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === "CAPTURE_VISIBLE_TAB_SLICE") {
     const windowId = sender.tab?.windowId ?? chrome.windows.WINDOW_ID_CURRENT;
     chrome.tabs.captureVisibleTab(windowId, { format: 'png' })
-      .then(dataUrl => sendResponse({ dataUrl }))
-      .catch(err => sendResponse({ error: err ? err.message : "Slice capture failed" }));
+      .then(dataUrl => safeSendResponse({ dataUrl }))
+      .catch(err => safeSendResponse({ error: err ? err.message : "Slice capture failed" }));
     return true;
   }
 
   // Launch Full-Page Capture Viewer
   if (message.action === "OPEN_CAPTURE_VIEWER") {
-    latestCapturePayload = message.payload;
-    chrome.tabs.create({ url: chrome.runtime.getURL("capture-viewer.html") });
-    sendResponse({ success: true });
+    saveCapturePayload(message.payload).finally(() => {
+      chrome.tabs.create({ url: chrome.runtime.getURL("capture-viewer.html") });
+    });
+    safeSendResponse({ success: true });
     return true;
   }
 
-  // Retrieve Stitched Capture Payload
+  // Retrieve Stitched Capture Payload (works even after the SW was restarted)
   if (message.action === "GET_LATEST_CAPTURE_PAYLOAD") {
-    sendResponse({ payload: latestCapturePayload });
+    loadCapturePayload().then(payload => safeSendResponse({ payload: payload || null }));
     return true;
   }
 
@@ -397,46 +469,47 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       chrome.scripting.executeScript({
         target: { tabId },
         files: ["capture.js"]
-      });
+      }).catch(() => {});
     }
-    sendResponse({ success: true });
+    safeSendResponse({ success: true });
     return true;
   }
 
   // Visual Image Search API Engine
   if (message.action === "search_image") {
     searchImage(message.imgUrl, sender.tab, "all"); 
+    safeSendResponse({ success: true });
     return true;
   }
 
   if (message.type === "GET_ALL_STATE") {
-    chrome.storage.local.get(DEFAULTS).then(sendResponse);
+    chrome.storage.local.get(DEFAULTS).then(s => safeSendResponse(s)).catch(() => safeSendResponse(DEFAULTS));
     return true;
   }
 
   if (message.type === "UPDATE_SETTING") {
     if (message.key === 'browserLockPassword') {
       hashPassword(message.value).then(hashed => {
-        chrome.storage.local.set({ browserLockPassword: hashed }).then(() => sendResponse({ success: true }));
+        chrome.storage.local.set({ browserLockPassword: hashed }).then(() => safeSendResponse({ success: true }));
       });
       return true;
     }
-    chrome.storage.local.set({ [message.key]: message.value }).then(() => sendResponse({ success: true }));
+    chrome.storage.local.set({ [message.key]: message.value }).then(() => safeSendResponse({ success: true }));
     return true;
   }
 
   if (message.type === "RESET_DEFAULTS") {
-    chrome.storage.local.set(DEFAULTS).then(() => sendResponse(DEFAULTS));
+    chrome.storage.local.set(DEFAULTS).then(() => safeSendResponse(DEFAULTS));
     return true;
   }
 
   if (message.type === "SHORTEN_URL") {
-    shortenUrlAPI(message.url).then(sendResponse).catch(err => sendResponse({ status: 500, message: err.toString() }));
+    shortenUrlAPI(message.url).then(r => safeSendResponse(r)).catch(err => safeSendResponse({ status: 500, message: err.toString() }));
     return true;
   }
 
   if (message.type === "CHECK_LOCK") {
-    chrome.storage.local.get(['browserLockEnabled']).then((local) => sendResponse({ locked: local.browserLockEnabled }));
+    chrome.storage.local.get(['browserLockEnabled']).then((local) => safeSendResponse({ locked: local.browserLockEnabled }));
     return true;
   }
 
@@ -444,19 +517,19 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     Promise.all([hashPassword(message.password), chrome.storage.local.get(['browserLockPassword'])]).then(([hashedInput, local]) => {
       if (hashedInput === local.browserLockPassword && local.browserLockPassword !== "") {
         if (!message.isDomainUnlock) {
-           chrome.storage.local.set({ browserLockEnabled: false }).then(() => sendResponse({ success: true }));
+           chrome.storage.local.set({ browserLockEnabled: false }).then(() => safeSendResponse({ success: true }));
         } else {
-           sendResponse({ success: true });
+           safeSendResponse({ success: true });
         }
       } else { 
-        sendResponse({ success: false }); 
+        safeSendResponse({ success: false }); 
       }
     });
     return true;
   }
   
   if (message.type === "CLEAR_HISTORY") {
-    chrome.storage.local.set({ urlHistory: [] }).then(() => sendResponse({ success: true }));
+    chrome.storage.local.set({ urlHistory: [] }).then(() => safeSendResponse({ success: true }));
     return true;
   }
 });
@@ -510,26 +583,30 @@ chrome.commands.onCommand.addListener(async (command) => {
 });
 
 chrome.runtime.onInstalled.addListener(() => {
-  // Full Page Capture Context Menu
-  chrome.contextMenus.create({ id: "capture_full_page", title: "📸 Capture Full Page Screenshot", contexts: ["page"] });
+  // Rebuild menus from scratch: re-creating an existing id throws
+  // "Cannot create item with duplicate id" on every extension reload/update.
+  chrome.contextMenus.removeAll(() => {
+    // Full Page Capture Context Menu
+    chrome.contextMenus.create({ id: "capture_full_page", title: "📸 Capture Full Page Screenshot", contexts: ["page"] });
 
-  // Shortener Context Menus
-  chrome.contextMenus.create({ id: "shorten_page", title: "Copy Short URL (Current Page)", contexts: ["page"] });
-  chrome.contextMenus.create({ id: "shorten_media", title: "Copy Short URL (This Media)", contexts: ["image", "video", "audio"] });
-  chrome.contextMenus.create({ id: "shorten_link", title: "Copy Short URL (This Link)", contexts: ["link"] });
+    // Shortener Context Menus
+    chrome.contextMenus.create({ id: "shorten_page", title: "Copy Short URL (Current Page)", contexts: ["page"] });
+    chrome.contextMenus.create({ id: "shorten_media", title: "Copy Short URL (This Media)", contexts: ["image", "video", "audio"] });
+    chrome.contextMenus.create({ id: "shorten_link", title: "Copy Short URL (This Link)", contexts: ["link"] });
 
-  // QR Context Menus
-  chrome.contextMenus.create({ id: "qr_page", title: "Get QR Code (Current Page)", contexts: ["page"] });
-  chrome.contextMenus.create({ id: "qr_media", title: "Get QR Code (This Media)", contexts: ["image", "video", "audio"] });
-  chrome.contextMenus.create({ id: "qr_link", title: "Get QR Code (This Link)", contexts: ["link"] });
+    // QR Context Menus
+    chrome.contextMenus.create({ id: "qr_page", title: "Get QR Code (Current Page)", contexts: ["page"] });
+    chrome.contextMenus.create({ id: "qr_media", title: "Get QR Code (This Media)", contexts: ["image", "video", "audio"] });
+    chrome.contextMenus.create({ id: "qr_link", title: "Get QR Code (This Link)", contexts: ["link"] });
 
-  // Search by Image Context Menus
-  chrome.contextMenus.create({ id: "sbi-parent", title: "Search by Image", contexts: ["image"] });
-  for (const [id, engine] of Object.entries(ENGINES)) {
-    chrome.contextMenus.create({ id: `sbi-${id}`, parentId: "sbi-parent", title: engine.name, contexts: ["image"] });
-  }
-  chrome.contextMenus.create({ id: "sbi-separator", parentId: "sbi-parent", type: "separator", contexts: ["image"] });
-  chrome.contextMenus.create({ id: "sbi-all", parentId: "sbi-parent", title: "Search All", contexts: ["image"] });
+    // Search by Image Context Menus
+    chrome.contextMenus.create({ id: "sbi-parent", title: "Search by Image", contexts: ["image"] });
+    for (const [id, engine] of Object.entries(ENGINES)) {
+      chrome.contextMenus.create({ id: `sbi-${id}`, parentId: "sbi-parent", title: engine.name, contexts: ["image"] });
+    }
+    chrome.contextMenus.create({ id: "sbi-separator", parentId: "sbi-parent", type: "separator", contexts: ["image"] });
+    chrome.contextMenus.create({ id: "sbi-all", parentId: "sbi-parent", title: "Search All", contexts: ["image"] });
+  });
 });
 
 chrome.contextMenus.onClicked.addListener((info, tab) => {
@@ -539,10 +616,16 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
       chrome.scripting.executeScript({ target: { tabId: tab.id }, func: () => alert("Full page capture is available on standard HTTP/HTTPS pages.") });
       return;
     }
-    chrome.scripting.executeScript({
-      target: { tabId: tab.id },
-      files: ["capture.js"]
-    });
+    // Inject overlay CSS first (the popup path does the same); capture.js also
+    // links capture.css via web_accessible_resources as a belt-and-braces fix.
+    chrome.scripting.insertCSS({ target: { tabId: tab.id }, files: ["capture.css"] })
+      .catch(() => {})
+      .finally(() => {
+        chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          files: ["capture.js"]
+        });
+      });
     return;
   }
 

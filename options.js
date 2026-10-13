@@ -190,7 +190,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function loadSettings() {
     chrome.runtime.sendMessage({ type: "GET_ALL_STATE" }, (state) => {
-      if (!state) return;
+      if (chrome.runtime.lastError || !state) return;
 
       inputs.targetImgEnabled.checked = state.targetImgEnabled;
       inputs.targetVidEnabled.checked = state.targetVidEnabled;
@@ -270,7 +270,9 @@ document.addEventListener('DOMContentLoaded', () => {
   loadSettings();
 
   function updateSetting(key, value) {
-    chrome.runtime.sendMessage({ type: "UPDATE_SETTING", key, value });
+    chrome.runtime.sendMessage({ type: "UPDATE_SETTING", key, value }, () => {
+      void chrome.runtime.lastError;
+    });
   }
 
   if (inputs.adBlockMode) {
@@ -380,7 +382,10 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   document.getElementById('clearHistoryBtn').addEventListener('click', () => {
-    chrome.runtime.sendMessage({ type: "CLEAR_HISTORY" }, () => renderHistory([]));
+    chrome.runtime.sendMessage({ type: "CLEAR_HISTORY" }, () => {
+      void chrome.runtime.lastError;
+      renderHistory([]);
+    });
   });
 
   // Live Diagnostics & Dev Error Console
@@ -428,15 +433,26 @@ document.addEventListener('DOMContentLoaded', () => {
       Object.keys(changes).forEach(key => {
         const newValue = changes[key].newValue;
         if (inputs[key] && !['browserLockPassword', 'browserLockPasswordConfirm'].includes(key)) {
-          if (['blurIntensity', 'shortcutAction', 'blurMode', 'audioEqMode', 'audioLufs', 'textSpoofingSeed'].includes(key)) {
-            inputs[key].value = newValue;
+          const el = inputs[key];
+          const isSelect = el.tagName === 'SELECT';
+          const isTextLike = el.type === 'range' || el.type === 'text' || el.type === 'number';
+          if (isSelect || isTextLike || ['blurIntensity', 'shortcutAction', 'blurMode', 'audioEqMode', 'audioLufs', 'textSpoofingSeed', 'adBlockMode'].includes(key)) {
+            // Selects / sliders / text inputs must sync via .value — assigning
+            // .checked on a <select> silently does nothing and desyncs the UI
+            // when the setting is changed from the popup or another tab.
+            if (isSelect || key === 'adBlockMode') {
+              el.value = String(newValue);
+              if (key === 'adBlockMode') updateAdBlockExplainer(Number(newValue) || 0);
+            } else {
+              el.value = newValue;
+            }
             if (key === 'blurMode' || key === 'blurIntensity') {
               updateIntensityLabel();
               updateIntensityBadge();
             }
             if (key === 'textSpoofingSeed') updateSpoofPreview();
           } else {
-            inputs[key].checked = newValue;
+            el.checked = Boolean(newValue);
             if (key === 'textSpoofingEnabled') updateSpoofPreview();
           }
         } else if (key === 'urlHistory') {

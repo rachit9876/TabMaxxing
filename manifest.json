@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "TabMaxxing - Supercharge Your Browser Tabs",
-  "version": "5.0.0",
+  "version": "5.0.1",
   "description": "Max out your tabs: Visual privacy, audio leveling, 1-click clipboard copier, text spoofing, area search, and browser tools.",
   "permissions": [
     "storage",
@@ -60,7 +60,8 @@
     {
       "resources": [
         "js/adblock/specific-rules.json",
-        "js/adblock/generic-rules.json"
+        "js/adblock/generic-rules.json",
+        "capture.css"
       ],
       "matches": ["<all_urls>"]
     }
@@ -68,7 +69,7 @@
   "commands": {
     "custom-shortcut": {
       "suggested_key": {
-        "default": "Alt+S"
+        "default": "Alt+X"
       },
       "description": "Customizable TabMaxxing Shortcut"
     }

@@ -102,4 +102,4 @@
 
 ## Version
 
-Current manifest version: `5.0.0`.
+Current manifest version: `5.0.1` (stability & MV3-lifecycle bugfix release).
