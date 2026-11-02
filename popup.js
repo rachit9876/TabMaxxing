@@ -35,7 +35,7 @@
     darkModeEnabled: { color: "var(--dark-accent)", labelPrefix: "DARK MODE" },
     textSpoofingEnabled: { color: "var(--textspoof-accent)", labelPrefix: "TEXT SPOOF" },
     browserLockEnabled: { color: "var(--lock-accent)", labelPrefix: "LOCK" },
-    instaDlEnabled: { color: "var(--insta-accent)", labelPrefix: "INSTA DL" }
+    mediaDlEnabled: { color: "var(--short-accent)", labelPrefix: "MEDIA DL" }
   };
 
   function updateSubUI(key, enabled) {
@@ -473,6 +473,175 @@
     });
 
     document.getElementById('settingsBtn').addEventListener('click', () => { chrome.runtime.openOptionsPage(); });
+
+    // --- Media Bucket Modal & Actions ---
+    const bucketModal = document.getElementById('bucketModal');
+    const openBucketBtn = document.getElementById('openBucketBtn');
+    const closeBucketModal = document.getElementById('closeBucketModal');
+    const bucketCountBadge = document.getElementById('bucketCountBadge');
+    const bucketModalBadge = document.getElementById('bucketModalBadge');
+    const bucketGrid = document.getElementById('bucketGrid');
+    const downloadZipBtn = document.getElementById('downloadZipBtn');
+    const clearBucketBtn = document.getElementById('clearBucketBtn');
+
+    function updateBucketBadge(items) {
+      const count = items ? items.length : 0;
+      if (bucketCountBadge) bucketCountBadge.textContent = `BUCKET (${count})`;
+      if (bucketModalBadge) bucketModalBadge.textContent = `${count} items`;
+    }
+
+    function renderBucketGallery(items) {
+      updateBucketBadge(items);
+      if (!bucketGrid) return;
+      bucketGrid.innerHTML = '';
+
+      if (!items || !items.length) {
+        bucketGrid.innerHTML = `
+          <div style="grid-column: 1 / -1; padding: 40px 10px; text-align: center; color: var(--text-secondary); font-size: 12px;">
+            <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom: 8px; opacity: 0.5;"><path d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+            <div>Your bucket is empty.</div>
+            <div style="font-size: 10.5px; margin-top: 4px; color: var(--text-dim);">Enable <b>Media DL</b>, hover any image on the web and click <b>Bucket</b> (or press <b>Alt+L</b>)!</div>
+          </div>
+        `;
+        return;
+      }
+
+      items.forEach((item, index) => {
+        const card = document.createElement('div');
+        card.style.cssText = 'position: relative; background: #161620; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; display: flex; flex-direction: column; aspect-ratio: 1;';
+        
+        const imgSrc = item.base64 || item.url;
+        card.innerHTML = `
+          <img src="${imgSrc}" style="width: 100%; height: 100%; object-fit: cover; display: block;" loading="lazy">
+          <div style="position: absolute; bottom: 0; inset-inline: 0; background: linear-gradient(transparent, rgba(0,0,0,0.85)); padding: 4px; display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-size: 9px; color: #94a3b8; font-weight: 700;">${item.width ? `${item.width}×${item.height}` : `#${index + 1}`}</span>
+            <div style="display: flex; gap: 4px;">
+              <button class="b-dl" title="Download image" style="background: rgba(255,255,255,0.2); border: none; border-radius: 4px; width: 20px; height: 20px; color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0;">
+                <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              </button>
+              <button class="b-del" title="Remove" style="background: rgba(239,68,68,0.3); border: none; border-radius: 4px; width: 20px; height: 20px; color: #f87171; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0;">
+                ✕
+              </button>
+            </div>
+          </div>
+        `;
+
+        card.querySelector('.b-dl').addEventListener('click', (e) => {
+          e.stopPropagation();
+          const ext = imgSrc.includes('image/png') ? 'png' : 'jpg';
+          chrome.runtime.sendMessage({
+            action: 'DOWNLOAD_MEDIA',
+            url: imgSrc,
+            filename: `bucket_${item.id || index}.${ext}`
+          });
+        });
+
+        card.querySelector('.b-del').addEventListener('click', async (e) => {
+          e.stopPropagation();
+          const res = await chrome.storage.local.get({ mediaBucket: [] });
+          let list = res.mediaBucket || [];
+          list = list.filter(b => b.id !== item.id);
+          await chrome.storage.local.set({ mediaBucket: list });
+          renderBucketGallery(list);
+        });
+
+        bucketGrid.appendChild(card);
+      });
+    }
+
+    if (openBucketBtn) {
+      openBucketBtn.addEventListener('click', async () => {
+        const res = await chrome.storage.local.get({ mediaBucket: [] });
+        renderBucketGallery(res.mediaBucket || []);
+        bucketModal.style.display = 'flex';
+      });
+    }
+
+    if (closeBucketModal) {
+      closeBucketModal.addEventListener('click', () => {
+        bucketModal.style.display = 'none';
+      });
+    }
+
+    if (clearBucketBtn) {
+      clearBucketBtn.addEventListener('click', async () => {
+        if (!confirm('Clear all items from your media bucket?')) return;
+        await chrome.storage.local.set({ mediaBucket: [] });
+        renderBucketGallery([]);
+      });
+    }
+
+    if (downloadZipBtn) {
+      downloadZipBtn.addEventListener('click', async () => {
+        const res = await chrome.storage.local.get({ mediaBucket: [] });
+        const items = res.mediaBucket || [];
+        if (!items.length) {
+          alert('Bucket is empty!');
+          return;
+        }
+
+        if (typeof JSZip === 'undefined') {
+          alert('ZIP library loading... Please try again.');
+          return;
+        }
+
+        const originalText = downloadZipBtn.innerHTML;
+        downloadZipBtn.innerHTML = `<span>Creating ZIP...</span>`;
+        downloadZipBtn.disabled = true;
+
+        try {
+          const zip = new JSZip();
+          const imgFolder = zip.folder("tabmaxxing_images");
+
+          for (let i = 0; i < items.length; i++) {
+            const item = items[i];
+            const dataUrl = item.base64 || item.url;
+            let binaryData = null;
+            let ext = "jpg";
+
+            if (dataUrl.startsWith("data:")) {
+              const parts = dataUrl.split(",");
+              const mime = parts[0].match(/:(.*?);/)?.[1] || "image/jpeg";
+              ext = mime.includes("png") ? "png" : mime.includes("webp") ? "webp" : "jpg";
+              const b64Str = parts[1];
+              binaryData = b64Str;
+              imgFolder.file(`image_${i + 1}_${item.width}x${item.height}.${ext}`, binaryData, { base64: true });
+            } else if (dataUrl.startsWith("http")) {
+              try {
+                const fetched = await fetch(dataUrl);
+                const blob = await fetched.blob();
+                ext = blob.type.includes("png") ? "png" : "jpg";
+                imgFolder.file(`image_${i + 1}.${ext}`, blob);
+              } catch (_) {}
+            }
+          }
+
+          const content = await zip.generateAsync({ type: "base64" });
+          const zipDataUrl = "data:application/zip;base64," + content;
+
+          chrome.runtime.sendMessage({
+            action: 'DOWNLOAD_MEDIA',
+            url: zipDataUrl,
+            filename: `tabmaxxing_bucket_${Date.now()}.zip`
+          });
+
+          downloadZipBtn.innerHTML = `<span>Downloaded ZIP!</span>`;
+          setTimeout(() => {
+            downloadZipBtn.innerHTML = originalText;
+            downloadZipBtn.disabled = false;
+          }, 2000);
+        } catch (err) {
+          alert(`Failed to create ZIP: ${err.message}`);
+          downloadZipBtn.innerHTML = originalText;
+          downloadZipBtn.disabled = false;
+        }
+      });
+    }
+
+    // Initialize initial count badge
+    chrome.storage.local.get({ mediaBucket: [] }, (res) => {
+      updateBucketBadge(res.mediaBucket || []);
+    });
   }
 
   init();

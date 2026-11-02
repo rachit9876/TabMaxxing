@@ -37,8 +37,7 @@ document.addEventListener('DOMContentLoaded', () => {
     browserLockPassword: document.getElementById('browserLockPassword'),
     browserLockPasswordConfirm: document.getElementById('browserLockPasswordConfirm'),
     domainLockEnabled: document.getElementById('domainLockEnabled'),
-    instaDlEnabled: document.getElementById('instaDlEnabled'),
-    instaDlCopyEnabled: document.getElementById('instaDlCopyEnabled'),
+    mediaDlEnabled: document.getElementById('mediaDlEnabled'),
     adBlockMode: document.getElementById('adBlockMode')
   };
   
@@ -214,11 +213,8 @@ document.addEventListener('DOMContentLoaded', () => {
       if (inputs.domainLockEnabled) {
         inputs.domainLockEnabled.checked = state.domainLockEnabled || false;
       }
-      if (inputs.instaDlEnabled) {
-        inputs.instaDlEnabled.checked = Boolean(state.instaDlEnabled);
-      }
-      if (inputs.instaDlCopyEnabled) {
-        inputs.instaDlCopyEnabled.checked = Boolean(state.instaDlCopyEnabled);
+      if (inputs.mediaDlEnabled) {
+        inputs.mediaDlEnabled.checked = Boolean(state.mediaDlEnabled);
       }
       if (inputs.adBlockMode) {
         const mode = typeof state.adBlockMode === 'number' ? state.adBlockMode : (state.adBlockEnabled ? 1 : 0);
@@ -285,7 +281,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  ['targetImgEnabled', 'targetVidEnabled', 'forceRightClickEnabled', 'stableVolumeEnabled', 'monoAudioEnabled', 'smoothVolumeEnabled', 'darkModeEnabled', 'textSpoofingEnabled', 'domainLockEnabled', 'instaDlEnabled', 'instaDlCopyEnabled'].forEach(key => {
+  ['targetImgEnabled', 'targetVidEnabled', 'forceRightClickEnabled', 'stableVolumeEnabled', 'monoAudioEnabled', 'smoothVolumeEnabled', 'darkModeEnabled', 'textSpoofingEnabled', 'domainLockEnabled', 'mediaDlEnabled'].forEach(key => {
     if (inputs[key]) {
       inputs[key].addEventListener('change', (e) => {
         updateSetting(key, e.target.checked);

@@ -791,7 +791,7 @@
     shortcutAction: "toggle_blur", browserLockEnabled: false, browserLockPassword: "", urlHistory: [],
     textSpoofingEnabled: false, textSpoofingSeed: "mediablock",
     domainLockEnabled: false, lockedDomains: [],
-    instaDlEnabled: false, instaDlCopyEnabled: false
+    mediaDlEnabled: false
     // adBlockMode is intentionally absent: js/adblock/adblock-cosmetic.js
     // reads and reacts to it on its own; the content script has no branch for it.
   };

@@ -795,14 +795,14 @@
       background: rgba(244, 63, 94, 0.12);
     }
 
-    .status-card.active-instaDlEnabled {
-      border-color: var(--insta-accent);
-      background: rgba(225, 48, 108, 0.07);
+    .status-card.active-mediaDlEnabled {
+      border-color: var(--short-accent);
+      background: rgba(139, 92, 246, 0.08);
     }
-    .status-card.active-instaDlEnabled .feature-icon-wrap {
-      color: var(--insta-accent);
-      border-color: rgba(225, 48, 108, 0.3);
-      background: rgba(225, 48, 108, 0.12);
+    .status-card.active-mediaDlEnabled .feature-icon-wrap {
+      color: var(--short-accent);
+      border-color: rgba(139, 92, 246, 0.3);
+      background: rgba(139, 92, 246, 0.12);
     }
 
     .status-card.active-adBlockMode-1,
@@ -875,6 +875,34 @@
     </div>
   </div>
 
+  <!-- Media Bucket Modal -->
+  <div id="bucketModal" style="display: none; position: fixed; inset: 0; background: rgba(10,10,14,0.98); z-index: 9998; flex-direction: column; padding: 14px; box-sizing: border-box;">
+    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--border);">
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#c4b5fd" stroke-width="2"><path d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+        <h2 style="font-size: 13.5px; font-weight: 800; margin: 0; color: #fff;">Media Bucket Gallery</h2>
+        <span id="bucketModalBadge" style="font-size: 10px; font-weight: 700; background: rgba(139,92,246,0.25); color: #c4b5fd; padding: 2px 7px; border-radius: 10px;">0 items</span>
+      </div>
+      <button id="closeBucketModal" style="background: transparent; border: none; color: var(--text-secondary); cursor: pointer; font-size: 16px; padding: 4px;">✕</button>
+    </div>
+
+    <!-- Bucket Action Buttons -->
+    <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+      <button id="downloadZipBtn" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 7px 12px; border-radius: 7px; border: 1px solid rgba(139,92,246,0.4); background: #8b5cf6; color: #fff; font-size: 11.5px; font-weight: 700; cursor: pointer;">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        <span>Download All as ZIP</span>
+      </button>
+      <button id="clearBucketBtn" style="padding: 7px 12px; border-radius: 7px; border: 1px solid var(--border); background: var(--card-bg); color: #f87171; font-size: 11.5px; font-weight: 700; cursor: pointer;">
+        Clear All
+      </button>
+    </div>
+
+    <!-- Bucket Gallery Grid -->
+    <div id="bucketGrid" style="flex: 1; overflow-y: auto; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; align-content: start; padding-right: 2px;">
+      <!-- Populated dynamically -->
+    </div>
+  </div>
+
   <div class="container" id="mainContainer">
     <!-- Header -->
     <div class="header">
@@ -893,6 +921,12 @@
             <path d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.603-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.462-1.11-1.462-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.831.092-.646.35-1.086.636-1.336-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0112 6.836c.85.004 1.705.114 2.504.336 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.138 20.161 22 16.416 22 12c0-5.523-4.477-10-10-10z"></path>
           </svg>
         </a>
+        <button class="scope-btn-mini" id="openBucketBtn" title="Open Media Bucket Gallery" style="color: #c4b5fd;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+          </svg>
+          <span class="scope-tag" id="bucketCountBadge">BUCKET (0)</span>
+        </button>
         <button class="scope-btn-mini" id="tabScopeBtn" title="Current Scope: All Tabs (Click to apply to This Tab Only)">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
@@ -1016,18 +1050,18 @@
           <div class="toggle-wrapper"><input type="checkbox" class="toggle-input" id="mediaUniformEnabled" /><label class="toggle-label" for="mediaUniformEnabled"><div class="toggle-track" id="mediaUniformEnabledTrack"><div class="toggle-thumb" id="mediaUniformEnabledThumb"></div></div></label></div>
         </div>
 
-        <!-- Instagram Pro -->
-        <div class="status-card" id="instaDlEnabledCard">
+        <!-- Media DL & Bucket -->
+        <div class="status-card" id="mediaDlEnabledCard">
           <div class="status-meta">
-            <div class="feature-icon-wrap">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg>
+            <div class="feature-icon-wrap" style="color: var(--short-accent);">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
             </div>
             <div class="status-text-block">
-              <span class="status-label">Instagram Pro</span>
-              <span class="status-badge" id="instaDlEnabledLabel">OFF</span>
+              <span class="status-label">Media DL</span>
+              <span class="status-badge" id="mediaDlEnabledLabel">OFF</span>
             </div>
           </div>
-          <div class="toggle-wrapper"><input type="checkbox" class="toggle-input" id="instaDlEnabled" /><label class="toggle-label" for="instaDlEnabled"><div class="toggle-track" id="instaDlEnabledTrack"><div class="toggle-thumb" id="instaDlEnabledThumb"></div></div></label></div>
+          <div class="toggle-wrapper"><input type="checkbox" class="toggle-input" id="mediaDlEnabled" /><label class="toggle-label" for="mediaDlEnabled"><div class="toggle-track" id="mediaDlEnabledTrack"><div class="toggle-thumb" id="mediaDlEnabledThumb"></div></div></label></div>
         </div>
       </div>
     </div>
@@ -1221,6 +1255,7 @@
     <!-- Footer -->
     <div class="footer"><span id="appVersion"></span> <span>•</span> <span>ACTIVE ON ALL SITES</span></div>
   </div>
+  <script src="jszip.min.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>

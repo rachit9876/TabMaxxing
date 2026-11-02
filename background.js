@@ -7,7 +7,7 @@ const DEFAULTS = {
   shortcutAction: "toggle_blur", browserLockEnabled: false, browserLockPassword: "", urlHistory: [],
   textSpoofingEnabled: false, textSpoofingSeed: "mediablock",
   domainLockEnabled: false, lockedDomains: [],
-  instaDlEnabled: false, instaDlCopyEnabled: false,
+  mediaDlEnabled: false, mediaBucket: [],
   adBlockMode: 0 // 0 = Off, 1 = Basic (DNR), 2 = Optimal (DNR + Specific Cosmetic), 3 = Complete (Optimal + Generic Cosmetic)
 };
 
@@ -195,85 +195,6 @@ chrome.storage.onChanged.addListener((changes, namespace) => {
   }
 });
 
-// --- Instagram media stream interception (registered ONCE at top level) ---
-// NOTE: These MUST live at the top level of the service worker. Registering
-// webRequest listeners inside onMessage would (a) leak a new listener on every
-// message and (b) point GET_CAPTURED_MEDIA at a fresh, always-empty Map.
-
-// Live MP4 progressive streams per tab (used by insta-dl resolution layer)
-const instagramVideoCache = new Map();
-// Recent captured media entries per tab ({url, time})
-const RECENT_TAB_MEDIA = new Map();
-
-function isInstagramMediaUrl(url) {
-  return Boolean(
-    url &&
-    (url.includes(".mp4") || url.includes("/v/t50.") || url.includes("/v/t51.")) &&
-    (url.includes("cdninstagram.com") || url.includes("fbcdn.net"))
-  );
-}
-
-if (chrome.webRequest && chrome.webRequest.onBeforeRequest) {
-  chrome.webRequest.onBeforeRequest.addListener(
-    (details) => {
-      if (!details.url || details.tabId < 0) return;
-      if (!isInstagramMediaUrl(details.url)) return;
-
-      // Normalize signed/escaped CDN URLs and strip range params so the same
-      // stream is not cached dozens of times under different byte ranges.
-      const cleanUrl = details.url
-        .replace(/&amp;/g, '&')
-        .replace(/\\u0026/g, '&')
-        .replace(/\\\//g, '/')
-        .replace(/["'\\].*$/, '')
-        .replace(/&bytestart=\d+&byteend=\d+/, '')
-        .replace(/\?bytestart=\d+&byteend=\d+&?/, '?')
-        .trim();
-
-      // Progressive video cache (used by GET_CAPTURED_MEDIA / insta-dl layer 5)
-      if (!RECENT_TAB_MEDIA.has(details.tabId)) {
-        RECENT_TAB_MEDIA.set(details.tabId, []);
-      }
-      const mediaList = RECENT_TAB_MEDIA.get(details.tabId);
-      if (!mediaList.some(m => m.url === cleanUrl)) {
-        mediaList.unshift({ url: cleanUrl, time: Date.now() });
-        if (mediaList.length > 50) mediaList.pop();
-      }
-
-      // MP4-only cache (deduped, kept for quick "latest" lookups)
-      if (cleanUrl.includes(".mp4") || cleanUrl.includes("bytestart")) {
-        if (!instagramVideoCache.has(details.tabId)) {
-          instagramVideoCache.set(details.tabId, []);
-        }
-        const list = instagramVideoCache.get(details.tabId);
-        if (!list.includes(cleanUrl)) {
-          list.unshift(cleanUrl);
-          if (list.length > 40) list.pop();
-        }
-      }
-    },
-    { urls: ["*://*.cdninstagram.com/*", "*://*.fbcdn.net/*", "*://*.instagram.com/*"] }
-  );
-
-  chrome.tabs.onRemoved.addListener((tabId) => {
-    instagramVideoCache.delete(tabId);
-    RECENT_TAB_MEDIA.delete(tabId);
-  });
-}
-
-// Shortcode to Numeric Media ID conversion (base64-ish Instagram alphabet)
-function shortcodeToMediaId(shortcode) {
-  if (!shortcode || typeof shortcode !== 'string') return null;
-  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
-  let id = 0n;
-  for (let i = 0; i < shortcode.length; i++) {
-    const val = BigInt(alphabet.indexOf(shortcode[i]));
-    if (val < 0n) return null;
-    id = id * 64n + val;
-  }
-  return id.toString();
-}
-
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   // Wrap sendResponse so a closed message port (popup closed, tab navigated)
   // never throws "Attempting to use a disconnected port object".
@@ -281,69 +202,67 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     try { sendResponse(payload); } catch (_) {}
   };
 
-  // Query cached live video streams for current tab
-  if (message.action === "GET_CACHED_VIDEO_URL") {
-    const tabId = sender.tab?.id;
-    const list = (tabId && instagramVideoCache.get(tabId)) || [];
-    safeSendResponse({ success: true, urls: list, latest: list[0] || null });
-    return true;
-  }
-
-  // Query Instagram Web APIs with service worker privileges
-  if (message.action === "RESOLVE_REEL_URL") {
-    const shortcode = message.shortcode;
-    const mediaId = shortcodeToMediaId(shortcode);
-    const endpoints = [];
-
-    if (mediaId) {
-      endpoints.push(`https://www.instagram.com/api/v1/media/${mediaId}/info/`);
-      endpoints.push(`https://i.instagram.com/api/v1/media/${mediaId}/info/`);
+  // Cross-origin image fetcher (bypasses page CORS to fetch full-resolution assets)
+  if (message.action === "FETCH_IMAGE_BASE64") {
+    if (!message.url) {
+      safeSendResponse({ success: false, error: "No URL provided" });
+      return false;
     }
-    endpoints.push(`https://www.instagram.com/graphql/query/?doc_id=8845758582119845&variables=${encodeURIComponent(JSON.stringify({ shortcode }))}`);
-    endpoints.push(`https://www.instagram.com/graphql/query/?doc_id=25531498899829322&variables=${encodeURIComponent(JSON.stringify({ shortcode }))}`);
-    endpoints.push(`https://www.instagram.com/p/${shortcode}/?__a=1&__d=dis`);
-    endpoints.push(`https://www.instagram.com/reel/${shortcode}/?__a=1&__d=dis`);
-
     (async () => {
-      for (const ep of endpoints) {
-        try {
-          const res = await fetch(ep, {
-            headers: {
-              "x-ig-app-id": "936619743392459",
-              "x-asbd-id": "129477",
-              "x-requested-with": "XMLHttpRequest"
-            }
-          });
-          if (res.ok) {
-            const json = await res.json();
-            const item = json?.items?.[0] || json?.data?.xdt_shortcode_media || json?.data?.shortcode_media || json?.graphql?.shortcode_media;
-            if (item) {
-              if (item.video_versions && Array.isArray(item.video_versions) && item.video_versions.length) {
-                const sorted = [...item.video_versions].sort((a, b) => (b.width * b.height) - (a.width * a.height));
-                const best = sorted[0]?.url;
-                if (best) {
-                  safeSendResponse({ success: true, url: best, source: ep });
-                  return;
-                }
-              }
-              if (item.video_url && item.video_url.startsWith("http")) {
-                safeSendResponse({ success: true, url: item.video_url, source: ep });
-                return;
-              }
-            }
-          }
-        } catch(e) {}
+      try {
+        let res = await fetch(message.url, { method: "GET", cache: "force-cache" });
+        if (!res.ok) res = await fetch(message.url, { method: "GET" });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const blob = await res.blob();
+        const reader = new FileReader();
+        reader.onloadend = () => safeSendResponse({ success: true, base64: reader.result, type: blob.type });
+        reader.onerror = () => safeSendResponse({ success: false, error: "Read failed" });
+        reader.readAsDataURL(blob);
+      } catch (err) {
+        safeSendResponse({ success: false, error: String(err) });
       }
-      safeSendResponse({ success: false, error: "No video stream resolved from background APIs" });
     })();
     return true;
   }
 
-  // Retrieve captured media streams for the active tab
-  if (message.action === "GET_CAPTURED_MEDIA") {
-    const tabId = sender.tab?.id;
-    const list = (tabId && RECENT_TAB_MEDIA.get(tabId)) || [];
-    safeSendResponse({ success: true, media: list });
+  // Log Media Item to Persistent Client-Side Bucket
+  if (message.action === "LOG_MEDIA_TO_BUCKET") {
+    (async () => {
+      try {
+        const item = message.media;
+        if (!item) {
+          safeSendResponse({ success: false, error: "No media provided" });
+          return;
+        }
+        const store = await chrome.storage.local.get({ mediaBucket: [] });
+        let bucket = Array.isArray(store.mediaBucket) ? store.mediaBucket : [];
+
+        // Deduplicate by URL or signature
+        const isDuplicate = bucket.some(b => (b.url && item.url && b.url === item.url) || (b.base64 && item.base64 && b.base64.substring(0, 200) === item.base64.substring(0, 200)));
+        if (isDuplicate) {
+          safeSendResponse({ success: true, status: "exists", count: bucket.length });
+          return;
+        }
+
+        bucket.unshift({
+          id: `mb_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+          url: item.url || "",
+          base64: item.base64 || "",
+          width: item.width || 0,
+          height: item.height || 0,
+          alt: item.alt || "Logged Image",
+          pageUrl: item.pageUrl || "",
+          date: Date.now()
+        });
+
+        // Cap bucket size at 80 items so storage doesn't exceed quota
+        if (bucket.length > 80) bucket = bucket.slice(0, 80);
+        await chrome.storage.local.set({ mediaBucket: bucket });
+        safeSendResponse({ success: true, count: bucket.length });
+      } catch (e) {
+        safeSendResponse({ success: false, error: String(e) });
+      }
+    })();
     return true;
   }
 
@@ -586,7 +505,8 @@ chrome.commands.onCommand.addListener(async (command) => {
       "toggle_hover": "mediaHoverEnabled", "toggle_rightclick": "forceRightClickEnabled",
       "toggle_stablevolume": "stableVolumeEnabled", "toggle_monoaudio": "monoAudioEnabled",
       "toggle_smoothvolume": "smoothVolumeEnabled",
-      "toggle_darkmode": "darkModeEnabled", "toggle_textspoof": "textSpoofingEnabled"
+      "toggle_darkmode": "darkModeEnabled", "toggle_textspoof": "textSpoofingEnabled",
+      "toggle_mediadl": "mediaDlEnabled"
     };
 
     const key = actionMap[action];

@@ -30,16 +30,9 @@
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["content.js", "js/adblock/adblock-cosmetic.js"],
+      "js": ["content.js", "js/adblock/adblock-cosmetic.js", "media-dl.js"],
       "run_at": "document_start",
       "all_frames": true
-    },
-    {
-      "matches": ["*://*.instagram.com/*"],
-      "js": ["insta-dl.js"],
-      "css": ["insta-dl.css"],
-      "run_at": "document_idle",
-      "all_frames": false
     }
   ],
   "action": {
@@ -61,7 +54,8 @@
       "resources": [
         "js/adblock/specific-rules.json",
         "js/adblock/generic-rules.json",
-        "capture.css"
+        "capture.css",
+        "media-dl.css"
       ],
       "matches": ["<all_urls>"]
     }
