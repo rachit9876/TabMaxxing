@@ -7,8 +7,11 @@ const DEFAULTS = {
   shortcutAction: "toggle_blur", browserLockEnabled: false, browserLockPassword: "", urlHistory: [],
   textSpoofingEnabled: false, textSpoofingSeed: "mediablock",
   domainLockEnabled: false, lockedDomains: [],
-  mediaDlEnabled: false, mediaBucket: [],
+  mediaDlEnabled: false,
   adBlockMode: 0 // 0 = Off, 1 = Basic (DNR), 2 = Optimal (DNR + Specific Cosmetic), 3 = Complete (Optimal + Generic Cosmetic)
+  // NOTE: mediaBucket is deliberately NOT part of DEFAULTS / GET_ALL_STATE.
+  // It can grow to hundreds of MB of base64 payloads; the popup reads it
+  // separately (chrome.storage.local.get) only when the bucket gallery opens.
 };
 
 // Search engine endpoints for context menu and snippet area visual search.
@@ -237,8 +240,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         const store = await chrome.storage.local.get({ mediaBucket: [] });
         let bucket = Array.isArray(store.mediaBucket) ? store.mediaBucket : [];
 
-        // Deduplicate by URL or signature
-        const isDuplicate = bucket.some(b => (b.url && item.url && b.url === item.url) || (b.base64 && item.base64 && b.base64.substring(0, 200) === item.base64.substring(0, 200)));
+        // Deduplicate by URL, or by (length + tail) signature of the payload.
+        // Comparing the HEAD of two base64 strings is unreliable: all images
+        // from the same encoder share identical JPEG headers, which produced
+        // false "Already in Bucket" hits on unrelated photos.
+        const isDuplicate = bucket.some(b => {
+          if (b.url && item.url && b.url === item.url) return true;
+          if (b.base64 && item.base64 && b.base64.length === item.base64.length) {
+            return b.base64.slice(-160) === item.base64.slice(-160);
+          }
+          return false;
+        });
         if (isDuplicate) {
           safeSendResponse({ success: true, status: "exists", count: bucket.length });
           return;
@@ -273,11 +285,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
-  if (message.action === "GET_AGENTIC_LOGS") {
-    safeSendResponse({ success: true, logs: AGENTIC_LOGS });
-    return true;
-  }
-
   // Clear both the in-memory ring buffer and the persisted copy. Clearing only
   // chrome.storage from the options page would be undone by the next debounced
   // flush, which always re-writes the full in-memory AGENTIC_LOGS array.
@@ -292,7 +299,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
-  // Direct Instagram / Media Downloader API
+  // Universal Media Downloader API. Serves the content-script hover overlay
+  // and the popup bucket gallery.
   if (message.action === "DOWNLOAD_MEDIA") {
     // Filenames arrive from content scripts; strip any path components and
     // characters that are illegal in download paths before handing them to
@@ -302,7 +310,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       const cleaned = base.replace(/[\u0000-\u001f<>:"|?*]/g, "").trim();
       return cleaned || "tabmaxxing_media";
     };
-    const filename = sanitizeFilename(message.filename || "instagram_media.mp4");
+    const filename = sanitizeFilename(message.filename || "tabmaxxing_media.jpg");
     let rawUrl = message.url || "";
     const cleanUrl = rawUrl.replace(/&amp;/g, '&').replace(/\\u0026/g, '&').replace(/\\\//g, '/').replace(/["'\\].*$/, '').trim();
 
@@ -367,23 +375,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
-  // Cross-origin image fetcher for Live Clipboard Copier
-  if (message.action === "FETCH_MEDIA_AS_BASE64") {
-    fetch(message.url)
-      .then(res => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.blob();
-      })
-      .then(blob => {
-        const reader = new FileReader();
-        reader.onloadend = () => safeSendResponse({ success: true, dataUrl: reader.result, type: blob.type });
-        reader.onerror = () => safeSendResponse({ success: false, error: "Reader error" });
-        reader.readAsDataURL(blob);
-      })
-      .catch(err => safeSendResponse({ success: false, error: err.toString() }));
-    return true;
-  }
-
   // Capture visible viewport for area snipping tool
   if (message.action === "capture_visible_tab") {
     const windowId = sender.tab?.windowId ?? chrome.windows.WINDOW_ID_CURRENT;
@@ -417,19 +408,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
-  // Trigger Full-Page Capture on Tab
-  if (message.action === "START_FULL_PAGE_CAPTURE") {
-    const tabId = message.tabId || sender.tab?.id;
-    if (tabId) {
-      chrome.scripting.executeScript({
-        target: { tabId },
-        files: ["capture.js"]
-      }).catch(() => {});
-    }
-    safeSendResponse({ success: true });
-    return true;
-  }
-
   // Visual Image Search API Engine
   if (message.action === "search_image") {
     searchImage(message.imgUrl, sender.tab, "all"); 
@@ -453,18 +431,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
-  if (message.type === "RESET_DEFAULTS") {
-    chrome.storage.local.set(DEFAULTS).then(() => safeSendResponse(DEFAULTS));
-    return true;
-  }
-
   if (message.type === "SHORTEN_URL") {
     shortenUrlAPI(message.url).then(r => safeSendResponse(r)).catch(err => safeSendResponse({ status: 500, message: err.toString() }));
-    return true;
-  }
-
-  if (message.type === "CHECK_LOCK") {
-    chrome.storage.local.get(['browserLockEnabled']).then((local) => safeSendResponse({ locked: local.browserLockEnabled }));
     return true;
   }
 

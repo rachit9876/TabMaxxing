@@ -285,28 +285,30 @@
     const currentY = Math.max(0, Math.min(rect.height, e.clientY - rect.top));
 
     if (activeResizeHandle) {
-      // Resizing from corners
+      // Resizing from corners. The moving edge is clamped BEFORE the new
+      // width/height are derived from it — clamping afterwards shifts the
+      // opposite (fixed) edge and lets the box grow past the image bounds.
       const dx = e.clientX - cropStart.x;
       const dy = e.clientY - cropStart.y;
       let { x, y, w, h } = initialCropRect;
 
       if (activeResizeHandle === "tl") {
-        const newX = Math.min(x + dx, x + w - 20);
-        const newY = Math.min(y + dy, y + h - 20);
+        const newX = Math.max(0, Math.min(x + dx, x + w - 20));
+        const newY = Math.max(0, Math.min(y + dy, y + h - 20));
         w = (x + w) - newX;
         h = (y + h) - newY;
-        x = Math.max(0, newX);
-        y = Math.max(0, newY);
+        x = newX;
+        y = newY;
       } else if (activeResizeHandle === "tr") {
-        const newY = Math.min(y + dy, y + h - 20);
+        const newY = Math.max(0, Math.min(y + dy, y + h - 20));
         w = Math.max(20, Math.min(rect.width - x, w + dx));
         h = (y + h) - newY;
-        y = Math.max(0, newY);
+        y = newY;
       } else if (activeResizeHandle === "bl") {
-        const newX = Math.min(x + dx, x + w - 20);
+        const newX = Math.max(0, Math.min(x + dx, x + w - 20));
         w = (x + w) - newX;
         h = Math.max(20, Math.min(rect.height - y, h + dy));
-        x = Math.max(0, newX);
+        x = newX;
       } else if (activeResizeHandle === "br") {
         w = Math.max(20, Math.min(rect.width - x, w + dx));
         h = Math.max(20, Math.min(rect.height - y, h + dy));
@@ -351,10 +353,16 @@
     const scaleX = canvas.width / rect.width;
     const scaleY = canvas.height / rect.height;
 
-    const sourceX = Math.round(cropRect.x * scaleX);
-    const sourceY = Math.round(cropRect.y * scaleY);
-    const sourceW = Math.round(cropRect.w * scaleX);
-    const sourceH = Math.round(cropRect.h * scaleY);
+    let sourceX = Math.round(cropRect.x * scaleX);
+    let sourceY = Math.round(cropRect.y * scaleY);
+    let sourceW = Math.round(cropRect.w * scaleX);
+    let sourceH = Math.round(cropRect.h * scaleY);
+
+    // Defensive bounds clamp: rounding at high zoom levels can push the rect
+    // a pixel past the canvas; out-of-bounds reads yield transparent padding.
+    sourceW = Math.min(sourceW, canvas.width - sourceX);
+    sourceH = Math.min(sourceH, canvas.height - sourceY);
+    if (sourceW < 1 || sourceH < 1) return;
 
     // Extract cropped pixels
     const croppedImageData = ctx.getImageData(sourceX, sourceY, sourceW, sourceH);

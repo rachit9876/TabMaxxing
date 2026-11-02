@@ -27,6 +27,14 @@
   let shownToolbar = null;
   const toolbars = new WeakMap();
 
+  // Per-tab scoping ("THIS TAB" mode): content.js relays tab-scoped
+  // mediaDlEnabled updates through this event because chrome.storage only
+  // holds the global value.
+  window.addEventListener("__tabmax_mediadl_state", (e) => {
+    isEnabled = Boolean(e.detail);
+    if (!isEnabled) hideToolbar();
+  });
+
   // Ensure layer is attached once document.body or documentElement is ready
   const layer = document.createElement("div");
   layer.className = "tabmax-dl-layer";
@@ -112,6 +120,14 @@
     }, duration);
   }
 
+  // Error text can originate from fetched URLs / runtime errors; it must
+  // never be interpolated into innerHTML unescaped.
+  function escapeText(value) {
+    return String(value ?? "").replace(/[&<>"']/g, (ch) => ({
+      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+    }[ch]));
+  }
+
   function createToolbar(el) {
     const tb = document.createElement("div");
     tb.className = "tabmax-dl-overlay";
@@ -159,22 +175,30 @@
 
   function showToolbar(el) {
     if (!isEnabled) return;
-    attachLayer();
-    const tb = toolbarFor(el);
     const rect = el.getBoundingClientRect();
     if (rect.width < 50 || rect.height < 50) return;
+
+    attachLayer();
+    const tb = toolbarFor(el);
+
+    // The layer may sit at a non-zero document offset (e.g. appended under a
+    // positioned <body> with margins). Position the toolbar relative to the
+    // layer's actual origin so it stays glued to the target element.
+    const layerRect = layer.getBoundingClientRect();
+    const originX = layerRect.left + window.scrollX;
+    const originY = layerRect.top + window.scrollY;
 
     tb.style.visibility = "hidden";
     tb.classList.add("visible");
 
-    let top = rect.top + window.scrollY + (rect.height * 0.75) - (tb.offsetHeight / 2);
-    let left = rect.left + window.scrollX + (rect.width / 2) - (tb.offsetWidth / 2);
+    let top = rect.top + window.scrollY - originY + (rect.height * 0.75) - (tb.offsetHeight / 2);
+    let left = rect.left + window.scrollX - originX + (rect.width / 2) - (tb.offsetWidth / 2);
 
     const viewTop = window.scrollY + 10;
     if (top < viewTop) top = viewTop;
     const maxTop = window.scrollY + window.innerHeight - tb.offsetHeight - 10;
     if (top > maxTop) top = Math.max(viewTop, maxTop);
-    left = Math.max(window.scrollX + 8, Math.min(window.scrollX + window.innerWidth - tb.offsetWidth - 8, left));
+    left = Math.max(window.scrollX + 8 - originX, Math.min(window.scrollX + window.innerWidth - tb.offsetWidth - 8 - originX, left));
 
     tb.style.top = `${Math.round(top)}px`;
     tb.style.left = `${Math.round(left)}px`;
@@ -309,6 +333,7 @@
     let base64 = null;
     let width = 0;
     let height = 0;
+    let kind = "image";
 
     if (imgEl) {
       bestUrl = pickLargestFromSrcset(imgEl) || imgEl.currentSrc || imgEl.src;
@@ -321,6 +346,7 @@
         base64 = getBase64FromImage(imgEl);
       }
     } else if (videoEl) {
+      kind = "video";
       width = videoEl.videoWidth || videoEl.clientWidth;
       height = videoEl.videoHeight || videoEl.clientHeight;
       base64 = getBase64FromVideoFrame(videoEl);
@@ -340,6 +366,7 @@
     const alt = (imgEl && imgEl.alt) || (el && el.alt) || document.title || "media";
 
     return {
+      kind,
       url: bestUrl || "",
       base64: base64 || bestUrl,
       width: width || 0,
@@ -367,8 +394,38 @@
         showToast(`${SVG_CHECK}<span>Added to Bucket (${res.count || 1})</span>`, "success");
       }
     } else {
-      showToast(`${SVG_CROSS}<span>Failed to log: ${res?.error || "Error"}</span>`, "error");
+      showToast(`${SVG_CROSS}<span>Failed to log: ${escapeText(res?.error || "Error")}</span>`, "error");
     }
+  }
+
+  // Derive a sensible file extension from the data-URL mime or the URL path.
+  function guessExtension(media) {
+    const payload = String(media.base64 || "");
+    let m = payload.match(/^data:image\/(png|jpeg|jpg|webp|gif|bmp|avif)/i);
+    if (m) return m[1].toLowerCase() === "jpeg" ? "jpg" : m[1].toLowerCase();
+    try {
+      const u = new URL(media.url || payload);
+      m = u.pathname.match(/\.(png|jpe?g|webp|gif|bmp|avif)$/i);
+      if (m) return m[1].toLowerCase().replace("jpeg", "jpg");
+    } catch (_) {}
+    return "jpg";
+  }
+
+  // data: URLs longer than ~2MB are rejected by the downloads API (URL length
+  // cap) and MV3 service workers cannot create blob: URLs, so large payloads
+  // are converted and downloaded from the page context, where createObjectURL
+  // is available.
+  async function downloadDataUrlLocally(dataUrl, filename) {
+    const blob = await (await fetch(dataUrl)).blob();
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = blobUrl;
+    a.download = filename;
+    a.style.display = "none";
+    shadowRoot.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => { try { URL.revokeObjectURL(blobUrl); } catch (_) {} }, 60000);
   }
 
   async function quickDownloadMedia(tb) {
@@ -379,27 +436,64 @@
       return;
     }
 
-    const ext = media.base64?.includes("image/png") ? "png" : "jpg";
+    const ext = guessExtension(media);
     const filename = `tabmaxxing_${Date.now()}.${ext}`;
+    const url = String(media.url || "");
+    const isHttp = /^https?:/i.test(url);
+    // Only true data: URLs count as payloads; the "base64" field may hold a
+    // plain URL as a fallback from resolveFullMedia.
+    const dataUrl = typeof media.base64 === "string" && media.base64.startsWith("data:") ? media.base64 : null;
 
-    const res = await sendMessageWithTimeout({
-      action: "DOWNLOAD_MEDIA",
-      url: media.base64 || media.url,
-      filename
-    });
+    const reportSuccess = () => showToast(`${SVG_CHECK}<span>Download started!</span>`, "success");
 
-    if (res && res.success) {
-      showToast(`${SVG_CHECK}<span>Downloaded image!</span>`, "success");
-    } else {
-      showToast(`${SVG_CROSS}<span>Download error</span>`, "error");
+    // Images: prefer the direct http(s) URL — chrome.downloads fetches it
+    // natively with no size limit and full fidelity. Videos keep the captured
+    // frame as the primary payload so an .mp4 stream is never saved as .jpg.
+    if (isHttp && media.kind !== "video") {
+      const res = await sendMessageWithTimeout({ action: "DOWNLOAD_MEDIA", url, filename });
+      if (res && res.success) {
+        reportSuccess();
+        return;
+      }
+      // Dead link / auth wall — fall through to the fetched payload.
     }
+
+    if (dataUrl) {
+      if (dataUrl.length > 1800000) {
+        try {
+          await downloadDataUrlLocally(dataUrl, filename);
+          reportSuccess();
+          return;
+        } catch (_) { /* fall back to the background attempt */ }
+      }
+      const res = await sendMessageWithTimeout({ action: "DOWNLOAD_MEDIA", url: dataUrl, filename });
+      if (res && res.success) {
+        reportSuccess();
+        return;
+      }
+    }
+
+    // Video frames may only have a poster URL to fall back on.
+    if (isHttp && media.kind === "video") {
+      const res = await sendMessageWithTimeout({ action: "DOWNLOAD_MEDIA", url, filename });
+      if (res && res.success) {
+        reportSuccess();
+        return;
+      }
+    }
+
+    showToast(`${SVG_CROSS}<span>Download failed</span>`, "error");
   }
 
   // Quick Alt+L shortcut to log hovered image
   document.addEventListener("keydown", (e) => {
     if (!isEnabled) return;
+    if (e.isComposing) return;
     if (!e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
     if (e.key !== "l" && e.key !== "L" && e.code !== "KeyL") return;
+    // Never hijack typing in form fields or editable regions.
+    const t = e.target;
+    if (t && (t.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(t.tagName))) return;
     const target = hoverEl || (shownToolbar && shownToolbar._target);
     if (target && target.isConnected) {
       e.preventDefault();

@@ -490,61 +490,122 @@
       if (bucketModalBadge) bucketModalBadge.textContent = `${count} items`;
     }
 
+    // Exposed for the storage.onChanged listener registered outside init().
+    window.__tabmaxUpdateBucketBadge = updateBucketBadge;
+
+    function guessBucketExt(src) {
+      const m = String(src || "").match(/^data:image\/(png|jpeg|jpg|webp|gif|bmp|avif)/i);
+      if (m) return m[1].toLowerCase() === "jpeg" ? "jpg" : m[1].toLowerCase();
+      try {
+        const u = new URL(src);
+        const m2 = u.pathname.match(/\.(png|jpe?g|webp|gif|bmp|avif)$/i);
+        if (m2) return m2[1].toLowerCase().replace("jpeg", "jpg");
+      } catch (_) {}
+      return "jpg";
+    }
+
+    // Download one bucket item. Runs in the popup (an extension page), where
+    // URL.createObjectURL is available, so large data-URL payloads bypass the
+    // ~2MB URL-length cap of the downloads API.
+    function downloadBucketItem(item, index) {
+      const src = item && (item.base64 || item.url);
+      if (!src) return;
+      const filename = `bucket_${item.id || index}.${guessBucketExt(src)}`;
+
+      if (src.startsWith("data:")) {
+        fetch(src)
+          .then(r => r.blob())
+          .then(blob => {
+            const blobUrl = URL.createObjectURL(blob);
+            chrome.downloads.download({ url: blobUrl, filename, conflictAction: "uniquify", saveAs: false }, () => {
+              if (chrome.runtime.lastError) console.error("TabMaxxing bucket download:", chrome.runtime.lastError.message);
+              setTimeout(() => { try { URL.revokeObjectURL(blobUrl); } catch (_) {} }, 60000);
+            });
+          })
+          .catch(() => {
+            chrome.runtime.sendMessage({ action: 'DOWNLOAD_MEDIA', url: src, filename });
+          });
+        return;
+      }
+
+      chrome.runtime.sendMessage({ action: 'DOWNLOAD_MEDIA', url: src, filename });
+    }
+
+    // Builds cards with DOM APIs only: bucket items contain page-controlled
+    // URLs, which must never be interpolated into innerHTML of an extension
+    // page (attribute breakout = script execution in the extension origin).
     function renderBucketGallery(items) {
       updateBucketBadge(items);
       if (!bucketGrid) return;
-      bucketGrid.innerHTML = '';
+      bucketGrid.textContent = "";
 
       if (!items || !items.length) {
-        bucketGrid.innerHTML = `
-          <div style="grid-column: 1 / -1; padding: 40px 10px; text-align: center; color: var(--text-secondary); font-size: 12px;">
-            <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom: 8px; opacity: 0.5;"><path d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
-            <div>Your bucket is empty.</div>
-            <div style="font-size: 10.5px; margin-top: 4px; color: var(--text-dim);">Enable <b>Media DL</b>, hover any image on the web and click <b>Bucket</b> (or press <b>Alt+L</b>)!</div>
-          </div>
+        const empty = document.createElement("div");
+        empty.style.cssText = "grid-column: 1 / -1; padding: 40px 10px; text-align: center; color: var(--text-secondary); font-size: 12px;";
+        empty.innerHTML = `
+          <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom: 8px; opacity: 0.5;"><path d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+          <div>Your bucket is empty.</div>
+          <div style="font-size: 10.5px; margin-top: 4px; color: var(--text-dim);">Enable <b>Media DL</b>, hover any image on the web and click <b>Bucket</b> (or press <b>Alt+L</b>)!</div>
         `;
+        bucketGrid.appendChild(empty);
         return;
       }
 
       items.forEach((item, index) => {
         const card = document.createElement('div');
         card.style.cssText = 'position: relative; background: #161620; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; display: flex; flex-direction: column; aspect-ratio: 1;';
-        
-        const imgSrc = item.base64 || item.url;
-        card.innerHTML = `
-          <img src="${imgSrc}" style="width: 100%; height: 100%; object-fit: cover; display: block;" loading="lazy">
-          <div style="position: absolute; bottom: 0; inset-inline: 0; background: linear-gradient(transparent, rgba(0,0,0,0.85)); padding: 4px; display: flex; justify-content: space-between; align-items: center;">
-            <span style="font-size: 9px; color: #94a3b8; font-weight: 700;">${item.width ? `${item.width}×${item.height}` : `#${index + 1}`}</span>
-            <div style="display: flex; gap: 4px;">
-              <button class="b-dl" title="Download image" style="background: rgba(255,255,255,0.2); border: none; border-radius: 4px; width: 20px; height: 20px; color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0;">
-                <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-              </button>
-              <button class="b-del" title="Remove" style="background: rgba(239,68,68,0.3); border: none; border-radius: 4px; width: 20px; height: 20px; color: #f87171; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0;">
-                ✕
-              </button>
-            </div>
-          </div>
-        `;
 
-        card.querySelector('.b-dl').addEventListener('click', (e) => {
+        const img = document.createElement('img');
+        img.alt = '';
+        img.loading = 'lazy';
+        img.style.cssText = 'width: 100%; height: 100%; object-fit: cover; display: block;';
+        img.src = item.base64 || item.url || "";
+        img.onerror = () => {
+          const fallback = document.createElement('div');
+          fallback.style.cssText = 'width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: #556; font-size: 10px; font-weight: 700;';
+          fallback.textContent = 'UNAVAILABLE';
+          img.replaceWith(fallback);
+        };
+
+        const footer = document.createElement('div');
+        footer.style.cssText = 'position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(transparent, rgba(0,0,0,0.85)); padding: 4px; display: flex; justify-content: space-between; align-items: center;';
+
+        const dims = document.createElement('span');
+        dims.style.cssText = 'font-size: 9px; color: #94a3b8; font-weight: 700;';
+        dims.textContent = item.width ? `${item.width}×${item.height}` : `#${index + 1}`;
+
+        const btns = document.createElement('div');
+        btns.style.cssText = 'display: flex; gap: 4px;';
+
+        const dlBtn = document.createElement('button');
+        dlBtn.className = 'b-dl';
+        dlBtn.title = 'Download image';
+        dlBtn.style.cssText = 'background: rgba(255,255,255,0.2); border: none; border-radius: 4px; width: 20px; height: 20px; color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0;';
+        dlBtn.innerHTML = '<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>';
+        dlBtn.addEventListener('click', (e) => {
           e.stopPropagation();
-          const ext = imgSrc.includes('image/png') ? 'png' : 'jpg';
-          chrome.runtime.sendMessage({
-            action: 'DOWNLOAD_MEDIA',
-            url: imgSrc,
-            filename: `bucket_${item.id || index}.${ext}`
-          });
+          downloadBucketItem(item, index);
         });
 
-        card.querySelector('.b-del').addEventListener('click', async (e) => {
+        const delBtn = document.createElement('button');
+        delBtn.className = 'b-del';
+        delBtn.title = 'Remove';
+        delBtn.style.cssText = 'background: rgba(239,68,68,0.3); border: none; border-radius: 4px; width: 20px; height: 20px; color: #f87171; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; font-size: 11px; line-height: 1;';
+        delBtn.textContent = '✕';
+        delBtn.addEventListener('click', async (e) => {
           e.stopPropagation();
           const res = await chrome.storage.local.get({ mediaBucket: [] });
-          let list = res.mediaBucket || [];
-          list = list.filter(b => b.id !== item.id);
+          const list = (res.mediaBucket || []).filter(b => b.id !== item.id);
           await chrome.storage.local.set({ mediaBucket: list });
           renderBucketGallery(list);
         });
 
+        btns.appendChild(dlBtn);
+        btns.appendChild(delBtn);
+        footer.appendChild(dims);
+        footer.appendChild(btns);
+        card.appendChild(img);
+        card.appendChild(footer);
         bucketGrid.appendChild(card);
       });
     }
@@ -581,7 +642,7 @@
         }
 
         if (typeof JSZip === 'undefined') {
-          alert('ZIP library loading... Please try again.');
+          alert('ZIP library failed to load. Please reopen the popup and try again.');
           return;
         }
 
@@ -592,44 +653,65 @@
         try {
           const zip = new JSZip();
           const imgFolder = zip.folder("tabmaxxing_images");
+          let packaged = 0;
+          let failed = 0;
 
           for (let i = 0; i < items.length; i++) {
             const item = items[i];
             const dataUrl = item.base64 || item.url;
-            let binaryData = null;
-            let ext = "jpg";
 
-            if (dataUrl.startsWith("data:")) {
+            if (typeof dataUrl === "string" && dataUrl.startsWith("data:")) {
               const parts = dataUrl.split(",");
               const mime = parts[0].match(/:(.*?);/)?.[1] || "image/jpeg";
-              ext = mime.includes("png") ? "png" : mime.includes("webp") ? "webp" : "jpg";
-              const b64Str = parts[1];
-              binaryData = b64Str;
-              imgFolder.file(`image_${i + 1}_${item.width}x${item.height}.${ext}`, binaryData, { base64: true });
-            } else if (dataUrl.startsWith("http")) {
+              const ext = mime.includes("png") ? "png" : mime.includes("webp") ? "webp" : mime.includes("gif") ? "gif" : "jpg";
+              imgFolder.file(`image_${i + 1}_${item.width || 0}x${item.height || 0}.${ext}`, parts[1], { base64: true });
+              packaged++;
+            } else if (typeof dataUrl === "string" && /^https?:/i.test(dataUrl)) {
               try {
                 const fetched = await fetch(dataUrl);
+                if (!fetched.ok) throw new Error(`HTTP ${fetched.status}`);
                 const blob = await fetched.blob();
-                ext = blob.type.includes("png") ? "png" : "jpg";
+                const ext = blob.type.includes("png") ? "png" : blob.type.includes("webp") ? "webp" : blob.type.includes("gif") ? "gif" : "jpg";
                 imgFolder.file(`image_${i + 1}.${ext}`, blob);
-              } catch (_) {}
+                packaged++;
+              } catch (_) {
+                failed++;
+              }
             }
           }
 
-          const content = await zip.generateAsync({ type: "base64" });
-          const zipDataUrl = "data:application/zip;base64," + content;
+          if (!packaged) {
+            alert('None of the bucket items could be packaged (remote images unreachable).');
+            downloadZipBtn.innerHTML = originalText;
+            downloadZipBtn.disabled = false;
+            return;
+          }
 
-          chrome.runtime.sendMessage({
-            action: 'DOWNLOAD_MEDIA',
-            url: zipDataUrl,
-            filename: `tabmaxxing_bucket_${Date.now()}.zip`
+          // Generate a Blob and download it directly from the popup. Routing a
+          // base64 data URL through the service worker instead fails for any
+          // ZIP larger than ~2MB (URL length cap; MV3 workers cannot create
+          // blob URLs).
+          const blob = await zip.generateAsync({ type: "blob" });
+          const blobUrl = URL.createObjectURL(blob);
+          const stamp = new Date().toISOString().slice(0, 10);
+
+          chrome.downloads.download({
+            url: blobUrl,
+            filename: `TabMaxxing_Bucket_${stamp}.zip`,
+            conflictAction: "uniquify",
+            saveAs: false
+          }, (downloadId) => {
+            setTimeout(() => { try { URL.revokeObjectURL(blobUrl); } catch (_) {} }, 120000);
+            if (chrome.runtime.lastError || downloadId === undefined) {
+              alert(`Download failed: ${chrome.runtime.lastError?.message || "unknown error"}`);
+            }
           });
 
-          downloadZipBtn.innerHTML = `<span>Downloaded ZIP!</span>`;
+          downloadZipBtn.innerHTML = `<span>ZIP ready (${packaged}${failed ? `, ${failed} skipped` : ""})</span>`;
           setTimeout(() => {
             downloadZipBtn.innerHTML = originalText;
             downloadZipBtn.disabled = false;
-          }, 2000);
+          }, 2500);
         } catch (err) {
           alert(`Failed to create ZIP: ${err.message}`);
           downloadZipBtn.innerHTML = originalText;
@@ -647,7 +729,15 @@
   init();
 
   chrome.storage.onChanged.addListener((changes, namespace) => {
-    if (namespace === 'local' && !isTabScoped) {
+    if (namespace !== 'local') return;
+
+    // Keep the bucket counter live regardless of tab scoping.
+    if (changes.mediaBucket) {
+      const list = Array.isArray(changes.mediaBucket.newValue) ? changes.mediaBucket.newValue : [];
+      if (typeof window.__tabmaxUpdateBucketBadge === 'function') window.__tabmaxUpdateBucketBadge(list);
+    }
+
+    if (!isTabScoped) {
       Object.keys(changes).forEach(key => {
         if (changes[key] !== undefined) {
           updateSubUI(key, changes[key].newValue);

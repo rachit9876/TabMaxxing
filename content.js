@@ -667,6 +667,12 @@
     else if (key === "darkModeEnabled") { toggleDarkMode(value); }
     else if (key === "textSpoofingEnabled") { toggleTextSpoofing(value); }
     else if (key === "textSpoofingSeed") { updateTextSpoofSeed(value); }
+    // media-dl.js runs as a separate content script and owns its own enabled
+    // state; relay scoped updates (and global resyncs) to it via a DOM event,
+    // since chrome.storage only carries the global value.
+    else if (key === "mediaDlEnabled") {
+      try { window.dispatchEvent(new CustomEvent("__tabmax_mediadl_state", { detail: Boolean(value) })); } catch (_) {}
+    }
     // NOTE: adBlockMode / cosmetic filtering is fully self-managed by
     // js/adblock/adblock-cosmetic.js, which reads the same storage directly.
     else if (key === "browserLockEnabled") { value ? showLockScreen() : document.getElementById('mb-lock-screen')?.remove(); }
