@@ -1,105 +1,132 @@
-# TabMaxxing ⚡
+# TabMaxxing
 
-**TabMaxxing** is the ultimate PowerTools & privacy utility suite for Chromium browsers. Max out your daily browsing stats with visual privacy (blur, block, pixelate, invert), audio leveling (stable volume compressor, mono downmix), 1-click live clipboard copying, Instagram high-res downloads (`insta-dl`), shoulder-surfing text spoofing, area snipping visual search, master password locks, and daily tab productivity tools.
+**TabMaxxing** is an all-in-one power tools & privacy suite for Chromium browsers (Manifest V3). It bundles visual privacy filters (blur, pixelate, block, invert), an audio leveling engine, an ad & tracker shield, an Instagram media downloader, full-page screenshot capture, reverse image search, text spoofing, password locks, and everyday utilities like QR codes and URL shortening — all configurable globally or per tab.
 
 [Download the latest ZIP](https://github.com/rachit9876/TabMaxxing/archive/refs/heads/main.zip)
 
-## What's New
+## Features
 
-- **Instagram Pro (Downloader & 1-Click Live Copier `insta-dl`):** Download highest-resolution photos, videos, stories, and reels on Instagram. Features an instant **1-Click Live Copy** button to copy full-resolution PNG images directly to your system clipboard for instant pasting (<kbd>Ctrl</kbd>+<kbd>V</kbd>) into Discord, WhatsApp Web, Slack, etc. without downloading any files!
-- **Accurate Story Media Handling:** Automatically distinguishes between still photo stories (`.jpg`) and video stories (`.mp4`), fixing the common bug in other downloaders where static photo stories were forced into video format.
-- **Visual Image Search & Snipping Tool:** Right-click to search images via Google Lens, Yandex, or TinEye. Use the "Search Area" tool in the popup to snip and search any part of your screen!
-- **Tab Scoped Settings:** Click "ALL TABS / THIS TAB" in the popup to apply filters and privacy modes to only the currently active tab without affecting the rest of your browser.
-- **QR Code Generator:** Right-click to generate a QR code for the current page, link, or media. A custom QR generator is also available in the popup.
-- **Text Spoofing:** Converts visible page text into deterministic, seed-based typoglycemic text to prevent shoulder-surfing.
-- **Domain Lock & Browser Lock:** Require your universal password before opening selected websites or lock the entire browser.
-- **URL Shortener:** Shorten current pages, links, images, video, and audio URLs, with recent history and QR preview.
-- **Smart Dark Mode:** Applies a dark-style inversion only when the current site appears light.
-- **Advanced Audio Tools:** Stable Volume compression, Mono Audio, dialogue boost, and heavy bass cut profiles.
+### Visual Privacy & Media Filtering
+| Feature | What it does |
+| :--- | :--- |
+| **Blur / Pixelate** | Applies a CSS Gaussian blur (5–50 px, adjustable) or an SVG pixel-mosaic filter to all targeted media. |
+| **Total Media Block** | Hides images/videos and, at the network level, blocks image and video requests via `declarativeNetRequest` rulesets (saves bandwidth). Blocked images show an `alt`-text placeholder. |
+| **Invert / Uniform Gray** | Inverts media colors or converts them to grayscale for low-distraction reading. |
+| **Hover Reveal** | Temporarily restores blurred/hidden media while the cursor is over it. |
+| **Media Targets** | Independently target Images (incl. `picture`, `canvas`, CSS backgrounds) and Videos (incl. embedded iframes). |
+| **Smart Dark Mode** | Inverts only pages that appear light, counter-inverting media so images and videos keep natural colors. |
 
-## ⚡ Feature Matrix (TabMaxxing Suite)
+### Ad Shield (uBlock Origin Lite–style engine)
+Four protection levels, selectable in the popup or the options page:
 
-### 📸 1. Instagram & Media Maxxing (`insta-dl`)
-| Feature | Icon | What It Does | Why It's Great |
-| :--- | :---: | :--- | :--- |
-| **1-Click Live Copier** | 📋 | Copies raw PNG images directly to your system clipboard | Paste (<kbd>Ctrl</kbd>+<kbd>V</kbd>) into Discord, WhatsApp Web, Slack, etc. without saving junk files. |
-| **Video Frame Snapshot** | 🖼️ | Captures the active playing frame of Reels & Videos as an image | Instant meme grabbing and high-definition frame copying. |
-| **Smart Story Downloader** | 📥 | Downloads stories as true `.jpg` photos or `.mp4` videos | Fixes the common bug where static photo stories were forced into `.mp4`. |
-| **Carousel & Reel Grabber** | 🎠 | Downloads single carousel slides, all slides, or full Reels | Highest available resolution directly from Instagram CDN. |
+| Mode | Behavior |
+| :--- | :--- |
+| **0 — Off** | No filtering. |
+| **1 — Basic** | Network blocking only, via bundled `declarativeNetRequest` rulesets (uBlock filters, EasyList, EasyPrivacy, Peter Lowe's list, uBlock badware, URLhaus). Zero page-side CPU. |
+| **2 — Optimal** | Basic + domain-specific cosmetic element hiding, matched against the hostname and uBO entity rules (`example.*`). |
+| **3 — Complete** | Optimal + generic cosmetic hiding: highly generic selectors are injected immediately; lowly generic selectors are resolved through djb2 hash mapping of observed ids/classes with a time-sliced DOM mutation observer. |
 
-### 🛡️ 2. Visual Privacy Maxxing
-| Feature | Icon | What It Does | Use Case |
-| :--- | :---: | :--- | :--- |
-| **Smart Blur & Pixelate** | 💧 | Applies Gaussian blur or retro mosaic filters to media | Browse in cafes, offices, or classrooms without screen snooping. |
-| **Total Media Block** | 🛑 | Zero-bandwidth network block using `declarativeNetRequest` | Extreme privacy and high-speed data saving. |
-| **Invert & Grayscale** | ☯️ | Inverts colors or converts all targeted media to black & white | Low-distraction reading and reduced eye strain. |
-| **Hover Reveal** | 👁️ | Temporarily un-blurs media only when your mouse hovers over it | Peek at images on demand without unmasking the whole page. |
-| **Target Selectors** | 🎯 | Filter only Images, only Videos, or both | Granular control over media rendering. |
+### Audio Engine (Web Audio API)
+| Feature | What it does |
+| :--- | :--- |
+| **Stable Volume** | Routes media through a compressor + makeup gain + brickwall limiter chain to level loudness spikes and lift quiet dialogue. |
+| **Loudness Target** | Compressor threshold selectable from −10 to −20 LUFS. |
+| **EQ Profiles** | Flat, Dialogue Boost, Night Mode (bass cut), Heavy Bass, Music, Cinema. |
+| **Mono Downmix** | Folds stereo into mono for single-earbud listening. |
+| **Smooth Volume** | 5-second exponential fade-in when media starts, to avoid ear-blasting autoplay. |
 
-### 🔊 3. Audio Maxxing
-| Feature | Icon | What It Does | Use Case |
-| :--- | :---: | :--- | :--- |
-| **Stable Volume Engine** | 🔊 | Dynamic Web Audio compression & LUFS loudness leveling | Normalizes audio spikes (whispering dialogue vs deafening explosions). |
-| **Mono Audio Downmix** | 🎧 | Combines stereo channels into balanced unified mono | Listening with a single earbud or sharing headphones. |
-| **Smooth Volume Fade** | 📈 | Softly ramps up volume when media starts playing | Eliminates sudden loud ear-blasting autoplay audio. |
-| **Custom EQ Profiles** | 🎛️ | Flat, Dialogue Boost, Night Mode (Bass Cut), Cinema, Music | Crystal-clear voices in podcasts, lectures, and movies. |
+Cross-origin media without a `crossOrigin` attribute is deliberately skipped so the graph never silences playback.
 
-### 🔒 4. Security & Text Privacy Maxxing
-| Feature | Icon | What It Does | Use Case |
-| :--- | :---: | :--- | :--- |
-| **Ad & Tracker Shield** | 🛡️ | Zero-overhead native Chromium DeclarativeNetRequest ad blocker | Drops ads, popups, and tracking beacons with 0ms latency and 0 telemetry. |
-| **Text Spoofing (Typoglycemia)** | 🔤 | Scrambles inner letters of words using a deterministic seed | Protects confidential documents & chats from shoulder surfers while you can still read it. |
-| **Browser Master Lock** | 🔒 | Locks the browser popup behind a universal SHA-256 password | Prevents unauthorized tampering when stepping away from your laptop. |
-| **Domain Lock** | 🚫 | Requires password authentication before accessing selected domains | Block distracting or private sites (e.g. `reddit.com`, `youtube.com`). |
-| **Per-Tab Scoping** | 🗂️ | Switch between "ALL TABS" and "THIS TAB" | Apply extreme privacy or filters to one tab without affecting others. |
+### Instagram Pro (`insta-dl`)
+| Feature | What it does |
+| :--- | :--- |
+| **Download Buttons** | Injects Download buttons on posts, reels, and stories. Photos download at the highest `srcset` resolution; videos resolve the best-quality MP4 through an 8-layer pipeline (direct src → in-page Instagram APIs → React Fiber scan → live network capture via `webRequest` → background API fallback → page script JSON scan → OpenGraph). |
+| **1-Click Live Copier** | Copies full-resolution PNG images — or the active video frame — directly to the clipboard for instant pasting into Discord, Slack, etc. Falls back to copying the direct URL if the clipboard image write fails. |
+| **Story Handling** | Distinguishes photo stories (`.jpg`) from video stories (`.mp4`). |
+| **SPA-aware** | MutationObserver + URL polling keep buttons present while you navigate Instagram's single-page app. |
 
-### 🛠️ 5. Day-to-Day Utilities
-| Feature | Icon | What It Does | Use Case |
-| :--- | :---: | :--- | :--- |
-| **Full Page Screenshot & PDF** | 📸 | Auto-scrolls and stitches entire webpages into high-res PNG or PDF | Capture long articles, receipts, and full design mockups with 1 click. |
-| **Area Snipping Search** | 🔍 | Snip any screen region for multi-engine reverse image search | Search directly with Google Lens, Yandex, or TinEye. |
-| **Force Right-Click & Copy** | 🔓 | Overrides restrictive website scripts that disable right-clicking | Enables text selection, context menus, and copy/paste anywhere. |
-| **QR Code Generator** | 📱 | Generates instant QR codes for any link, image, or custom text | Quick link transfer directly from your desktop to your phone. |
-| **Universal URL Shortener** | 🔗 | 1-click URL shortening with recent history tracking | Clean, short shareable links without opening external tools. |
-| **Smart Dark Mode** | 🌙 | Intelligent dark theme inversion for glaring white sites | Comfortable night-time reading with media color preservation. |
+### Capture & Search Tools
+| Feature | What it does |
+| :--- | :--- |
+| **Full-Page Screenshot** | Auto-scrolls the page (sticky headers hidden after the first slice), captures viewport slices through the extension service worker, and stitches them into a canvas viewer. Includes crop + undo, zoom, high-res PNG download, PDF export (via the browser print dialog), and 1-click clipboard copy. Capped at 100 slices and Chrome's 16384 px / 268 MP canvas limits (long pages are downscaled automatically). |
+| **Area Snipping Search** | Drag a selection anywhere on the page to capture it and run a reverse image search on Google Lens, Yandex, and/or TinEye (opened in new tabs). |
+| **Right-Click Image Search** | Context-menu entry to search any image by URL or upload. |
+| **QR Codes** | Context-menu QR overlays for the page / link / media, a custom QR input in the popup, and enlarged QR previews in the shortening history. |
+| **URL Shortener** | 1-click shortening via the free [is.gd](https://is.gd) API (no key or account needed), with copy-to-clipboard and a 20-entry history. |
+
+### Security & Text Privacy
+| Feature | What it does |
+| :--- | :--- |
+| **Text Spoofing** | Deterministic, seed-based typoglycemic scramble of visible words (first/last letters preserved) to defeat shoulder surfing; runs on a MutationObserver so SPA content stays spoofed. |
+| **Browser Lock** | Master password (stored only as a SHA-256 hash) that gates the extension popup and covers pages with a lock overlay. |
+| **Domain Lock** | Requires the master password before opening selected domains (per-site unlock remembered for the browser session). |
+| **Force Right-Click** | Re-enables context menus, text selection, and copy on sites that block them. |
+| **Per-Tab Scoping** | "ALL TABS / THIS TAB" switch applies filters to just the active tab without touching global settings. |
+| **Diagnostics Console** | Live error log (relayed from content scripts and the service worker) viewable in the options page, with copy/clear. |
+
+### Keyboard Shortcut
+`Alt+X` (remappable at `chrome://extensions/shortcuts`) triggers a configurable action: toggle blur, block, invert, uniform, hover, right-click, stable/mono/smooth volume, dark mode, text spoofing, or open settings. The shortcut respects per-tab scoping.
 
 ## Installation
 
-1. Download the ZIP from this repository.
-2. Extract it to a folder.
-3. Open Chrome and go to `chrome://extensions/`.
-4. Enable **Developer mode**.
-5. Click **Load unpacked**.
-6. Select the extracted extension folder.
-7. Pin **TabMaxxing** to your toolbar for quick access.
+1. Download and extract the ZIP from this repository.
+2. Open `chrome://extensions/`.
+3. Enable **Developer mode**.
+4. Click **Load unpacked** and select the extracted folder.
+5. Pin **TabMaxxing** to the toolbar.
 
-## Permissions Used
+## Permissions & Why They Are Needed
 
-- `storage`: Save extension settings, password hash, domain locks, and URL history.
-- `downloads`: Save high-resolution Instagram photos, videos, and reels.
-- `declarativeNetRequest`: Block image and video requests efficiently.
-- `declarativeNetRequestWithHostAccess`: Apply network rules across allowed sites.
-- `scripting`: Run small page scripts for counters, snipping tools, clipboard writes, and alerts.
-- `tabs`: Read the active tab URL for counters, screenshots, and URL shortening.
-- `activeTab`: Interact with the currently active page.
-- `clipboardWrite`: Direct copy of images, frames, and shortened URLs to the clipboard.
-- `contextMenus`: Add right-click URL shortening, QR generation, and image search actions.
-- `<all_urls>` host access: Apply media filtering, text spoofing, locks, and page protections across websites.
+| Permission | Purpose |
+| :--- | :--- |
+| `storage` | Settings, password hash, domain locks, shortening history, diagnostics logs. |
+| `declarativeNetRequest` / `declarativeNetRequestWithHostAccess` | Native network blocking for the Ad Shield and image/video media block. |
+| `webRequest` | **Observation only** (MV3 cannot block with it): captures Instagram CDN media URLs in the active tab to resolve `blob:` video downloads. |
+| `scripting` | Injects the capture, snipping, QR overlay, and counter scripts on demand. |
+| `tabs` | Reads the active tab URL for counters, screenshots, and shortening. |
+| `activeTab` | Interacts with the current page on user action. |
+| `clipboardWrite` | Copies images, frames, and shortened URLs. |
+| `contextMenus` | Right-click image search, QR, and shortening entries. |
+| `downloads` | Saves Instagram media and screenshots. |
+| `<all_urls>` host access | Content scripts (media filters, text spoofing, locks) must run everywhere. |
 
-## Project Files
+### What leaves your browser
+- Shortened URLs are sent to **is.gd**; QR codes are rendered by **api.qrserver.com**; reverse image searches send the image URL (or an uploaded crop) to the chosen engine. Instagram media resolution queries Instagram's own endpoints with your logged-in session. The popup/options pages load the *Alata* font from Google Fonts. Everything else — filters, adblock rules, capture, locks — runs fully locally.
 
-- `manifest.json`: Chrome extension manifest.
-- `background.js`: State management, DNR rules, shortcut handling, context menus, URL shortening, visual search uploaders, password checks, download handlers.
-- `content.js`: Page-side media filters, smart dark mode, lock overlays, Web Audio API processing, force right-click, Text Spoofing observer.
-- `insta-dl.js`: Instagram media resolver, story handler, 1-click clipboard copier, and post/reel/story UI injector.
-- `insta-dl.css`: Styling for Instagram action bars, buttons, dropdowns, and toast notifications.
-- `capture.js` / `capture.css`: Full-page scrolling screenshot orchestrator and sticky header suppressor.
-- `capture-viewer.html` / `capture-viewer.js`: High-resolution stitched canvas viewer, PNG/JPEG download, PDF exporter, and 1-click clipboard copier.
-- `selector.js`: Screen area selection and snipping tool UI for Visual Search.
-- `popup.html` / `popup.js`: Quick controls, URL shortener, QR generator, snipping tool trigger, Instagram Pro toggle, and tab scoping logic.
-- `options.html` / `options.js`: Advanced settings, Instagram configuration, domain locks, history, and live previews.
-- `rules/`: Declarative network request rules for media blocking.
+## Project Structure
 
-## Version
+```
+manifest.json                  MV3 manifest (permissions, DNR rulesets, commands)
+background.js                  Service worker: state, DNR, badge, context menus,
+                               shortcuts, shortener, visual search uploaders,
+                               Instagram stream capture, download handling
+content.js                     Content script: visual filters, smart dark mode,
+                               Web Audio engine, force right-click, text spoofing,
+                               lock overlays, per-tab scoping
+js/adblock/adblock-cosmetic.js Cosmetic filtering engine (specific + generic)
+js/adblock/specific-rules.json Domain-keyed specific cosmetic selectors
+js/adblock/generic-rules.json  Generic cosmetic selectors (high/low specificity)
+insta-dl.js / insta-dl.css     Instagram downloader & clipboard copier
+capture.js / capture.css       Full-page scrolling capture orchestrator
+capture-viewer.html / .js      Stitched-canvas viewer (crop, zoom, PNG, PDF)
+selector.js / selector.css     Area snipping tool for visual search
+popup.html / popup.js          Toolbar popup: quick toggles, tools, scoping
+options.html / options.js      Settings page: all options, locks, history, logs
+rules/block_images.json        DNR ruleset: image requests
+rules/block_videos.json        DNR ruleset: video requests
+rules/adblock/*.json           DNR rulesets: uBlock, EasyList, EasyPrivacy, etc.
+icons/                         Extension icons
+convert_icons.py               Utility: converts .ico icons to .png (Pillow)
+```
 
-Current manifest version: `5.0.1` (stability & MV3-lifecycle bugfix release).
+## Development Notes
+
+- `convert_icons.py` regenerates the `.png` icons from the `.ico` files (`pip install Pillow` first).
+- The extension stores its settings in `chrome.storage.local`. Setting the Ad Shield mode is the numeric key `adBlockMode` (0–3); a legacy boolean `adBlockEnabled` from older versions is migrated automatically on startup.
+- The capture viewer can also be reached directly after a capture; the payload survives service-worker restarts via `chrome.storage.session`.
+
+## Known Limitations
+
+- Full-page capture supports up to 100 viewport slices and downscale-fits Chrome's maximum canvas size; extremely long pages are therefore captured at reduced resolution.
+- Instagram's private APIs change frequently; the downloader's multi-layer resolver degrades gracefully, but no resolution can be guaranteed for every post.
+- Domain Lock is a convenience/privacy overlay, not OS-level parental control — it guards normal browsing contexts only.

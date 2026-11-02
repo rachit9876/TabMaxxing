@@ -1,4 +1,4 @@
-﻿// TabMaxxing - AdBlock Cosmetic Filtering Engine (uBlock Origin Lite Architecture)
+// TabMaxxing - AdBlock Cosmetic Filtering Engine (uBlock Origin Lite Architecture)
 // Supports:
 // Level 0: Off (No action)
 // Level 1: Basic (DNR network blocking handled in background service worker)
@@ -134,11 +134,25 @@
       if (!hostname) return;
 
       const matchingSelectors = new Set();
+      // Walk the hostname and every parent label ("a.b.c.com" -> "b.c.com" ->
+      // "c.com"), and at each level also test the uBO entity form where the
+      // public suffix is replaced by "*" (e.g. "gmx.*" covers gmx.de, gmx.net).
+      // Without the entity lookup, the hundreds of "<domain>.*" rules compiled
+      // into specific-rules.json would never match anything.
       let hn = hostname;
       while (hn) {
         if (specificRulesCache[hn]) {
           for (const sel of specificRulesCache[hn]) {
             matchingSelectors.add(sel);
+          }
+        }
+        const lastDot = hn.lastIndexOf('.');
+        if (lastDot > 0) {
+          const entityKey = hn.slice(0, lastDot) + '.*';
+          if (specificRulesCache[entityKey]) {
+            for (const sel of specificRulesCache[entityKey]) {
+              matchingSelectors.add(sel);
+            }
           }
         }
         const dotIndex = hn.indexOf('.');

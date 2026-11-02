@@ -17,7 +17,7 @@
   chrome.storage.onChanged.addListener((changes, namespace) => {
     if (namespace === "local") {
       if (changes.instaDlEnabled !== undefined) {
-        isEnabled = changes.instaDlEnabled.newValue !== false;
+        isEnabled = Boolean(changes.instaDlEnabled.newValue);
         if (isEnabled) {
           startObserver();
           scanPage();
@@ -27,7 +27,7 @@
         }
       }
       if (changes.instaDlCopyEnabled !== undefined) {
-        isCopyEnabled = changes.instaDlCopyEnabled.newValue !== false;
+        isCopyEnabled = Boolean(changes.instaDlCopyEnabled.newValue);
         scanPage();
       }
     }
@@ -52,7 +52,15 @@
       document.body.appendChild(toast);
     }
     toast.className = `insta-dl-toast insta-dl-toast-${type} show`;
-    toast.innerHTML = `<span>${type === "success" ? "✨" : "ℹ️"}</span> <span>${message}</span>`;
+    // Build with DOM APIs (never innerHTML): messages can contain text derived
+    // from runtime errors, and toast content must stay plain text.
+    toast.textContent = "";
+    const icon = document.createElement("span");
+    icon.textContent = type === "success" ? "✨" : "ℹ️";
+    const text = document.createElement("span");
+    text.textContent = message;
+    toast.appendChild(icon);
+    toast.appendChild(text);
     
     clearTimeout(toast.__timer);
     toast.__timer = setTimeout(() => {
@@ -76,18 +84,6 @@
       }
     }
     return imgEl.currentSrc || imgEl.src || null;
-  }
-
-  // Live Agentic Debug Tunnel & Logger Relay
-  function logDebug(...args) {
-    console.log("[TabMaxxing InstaDL]", ...args);
-    try {
-      chrome.runtime.sendMessage({
-        action: "AGENTIC_LOG",
-        category: "INSTA_DL",
-        logs: args.map(a => (typeof a === "object" ? JSON.stringify(a) : String(a)))
-      });
-    } catch (e) {}
   }
 
   // Universal Media URL Sanitizer (decodes escaped slashes, &amp;, \u0026)
@@ -320,20 +316,16 @@
 
   // Resolve Real CDN MP4 URL (resolves blob: URLs via 8-layer pipeline)
   async function resolveRealVideoUrl(videoEl, shortcode = null) {
-    console.log("[TabMaxxing InstaDL] Starting resolution for video:", videoEl, "Shortcode:", shortcode);
 
     // 1. Direct src if already a valid http(s) MP4 URL
     if (videoEl && videoEl.src && videoEl.src.startsWith("http") && !videoEl.src.startsWith("blob:")) {
-      console.log("[TabMaxxing InstaDL] Found direct video src:", videoEl.src);
       return videoEl.src;
     }
     if (videoEl && videoEl.currentSrc && videoEl.currentSrc.startsWith("http") && !videoEl.currentSrc.startsWith("blob:")) {
-      console.log("[TabMaxxing InstaDL] Found direct currentSrc:", videoEl.currentSrc);
       return videoEl.currentSrc;
     }
     const source = videoEl ? videoEl.querySelector("source") : null;
     if (source && source.src && source.src.startsWith("http") && !source.src.startsWith("blob:")) {
-      console.log("[TabMaxxing InstaDL] Found direct source src:", source.src);
       return source.src;
     }
 
@@ -341,7 +333,6 @@
     if (!shortcode && videoEl) {
       const parentContainer = videoEl.closest("div[role='dialog'], div[style*='aspect-ratio'], div[tabindex], div[role='presentation'], article, main") || videoEl.parentElement;
       if (parentContainer) shortcode = extractReelShortcode(parentContainer);
-      console.log("[TabMaxxing InstaDL] Auto-extracted shortcode:", shortcode);
     }
 
     // 3. Query In-Page Authenticated Instagram APIs with session cookies & CSRF using numeric media ID & shortcode
@@ -361,7 +352,6 @@
 
       for (const ep of endpoints) {
         try {
-          console.log("[TabMaxxing InstaDL] Querying in-page API:", ep);
           const res = await fetch(ep, {
             credentials: "include",
             headers: {
@@ -375,7 +365,6 @@
             const json = await res.json();
             const extracted = extractVideoFromApiJson(json);
             if (extracted) {
-              console.log("[TabMaxxing InstaDL] In-page API resolved video URL:", extracted, "from:", ep);
               return extracted;
             }
           }
@@ -395,7 +384,6 @@
           const fiber = curr[reactKey];
           const foundUrl = searchFiberForVideoUrl(fiber, 0);
           if (foundUrl) {
-            console.log("[TabMaxxing InstaDL] React Fiber deep scan found URL:", foundUrl);
             return foundUrl;
           }
         }
@@ -411,7 +399,6 @@
       });
       if (capRes && capRes.success && capRes.media && capRes.media.length) {
         const latestMedia = capRes.media[0].url;
-        console.log("[TabMaxxing InstaDL] Using live captured media stream:", latestMedia);
         return latestMedia;
       }
     } catch (e) {}
@@ -419,14 +406,12 @@
     // 6. Background Service Worker API Fallback
     if (shortcode && shortcode.length > 3 && shortcode !== "reels" && shortcode !== "reel") {
       try {
-        console.log("[TabMaxxing InstaDL] Querying background API resolver for shortcode:", shortcode);
         const bgRes = await new Promise(resolve => {
           chrome.runtime.sendMessage({ action: "RESOLVE_REEL_URL", shortcode }, resolve);
         });
         if (bgRes && bgRes.success && bgRes.url) {
           const clean = sanitizeMediaUrl(bgRes.url);
           if (clean) {
-            console.log("[TabMaxxing InstaDL] Background API successfully resolved URL:", clean, "from source:", bgRes.source);
             return clean;
           }
         }
@@ -438,14 +423,12 @@
     // 7. Page Scripts JSON Scanner
     const scriptUrl = searchPageScriptsForVideo(shortcode);
     if (scriptUrl) {
-      console.log("[TabMaxxing InstaDL] Page script JSON scanner found URL:", scriptUrl);
       return scriptUrl;
     }
 
     // 8. OpenGraph metadata
     const metaOg = document.querySelector('meta[property="og:video"], meta[property="og:video:secure_url"]');
     if (metaOg && metaOg.content && metaOg.content.startsWith("http") && !metaOg.content.startsWith("blob:")) {
-      console.log("[TabMaxxing InstaDL] OpenGraph meta tag found URL:", metaOg.content);
       return metaOg.content;
     }
 
@@ -530,11 +513,15 @@
         throw new Error("Blob creation failed");
       }
     } catch (err) {
-      console.warn("MediaBlock Pro insta-dl copy error:", err);
+      console.warn("TabMaxxing insta-dl copy error:", err);
       // Fallback: Copy URL text to clipboard
       if (imageUrl) {
-        await navigator.clipboard.writeText(imageUrl);
-        showToast("Direct Image URL copied!", "success");
+        try {
+          await navigator.clipboard.writeText(imageUrl);
+          showToast("Direct Image URL copied!", "success");
+        } catch (_) {
+          showToast("Could not copy image directly", "info");
+        }
       } else {
         showToast("Could not copy image directly", "info");
       }

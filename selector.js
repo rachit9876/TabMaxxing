@@ -1,4 +1,4 @@
-// MediaBlock Pro - Area Selection & Snipping Tool for Image Search
+// TabMaxxing - Area Selection & Snipping Tool for Image Search
 (function() {
   if (window.sbiSelectorActive) return;
   window.sbiSelectorActive = true;
@@ -99,7 +99,7 @@
       setTimeout(() => {
         chrome.runtime.sendMessage({ action: "capture_visible_tab" }, (response) => {
           if (chrome.runtime.lastError || !response || !response.dataUrl) {
-            console.error("MediaBlock Pro: Screenshot capture failed", chrome.runtime.lastError || response?.error);
+            console.error("TabMaxxing: Screenshot capture failed", chrome.runtime.lastError || response?.error);
             return;
           }
 

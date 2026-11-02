@@ -11,9 +11,11 @@ const DEFAULTS = {
   adBlockMode: 0 // 0 = Off, 1 = Basic (DNR), 2 = Optimal (DNR + Specific Cosmetic), 3 = Complete (Optimal + Generic Cosmetic)
 };
 
-// Search engine endpoints for context menu and snippet area visual search
+// Search engine endpoints for context menu and snippet area visual search.
+// Google Lens requires the "uploadbyurl" deep link; "upload?url=" only opens
+// the generic upload page without searching the provided URL.
 const ENGINES = {
-  google: { name: "Google", url: "https://lens.google.com/upload?url=" },
+  google: { name: "Google", url: "https://lens.google.com/uploadbyurl?url=" },
   yandex: { name: "Yandex", url: "https://yandex.com/images/search?rpt=imageview&url=" },
   tineye: { name: "TinEye", url: "https://www.tineye.com/search/?url=" }
 };
@@ -91,6 +93,10 @@ async function init() {
   // Legacy migration: adBlockEnabled (boolean) -> adBlockMode (number).
   // Must inspect raw storage WITHOUT defaults, otherwise adBlockMode always
   // looks present (as the default 0) and the migration never runs.
+  // The legacy key is intentionally NOT deleted afterwards: deleting it would
+  // emit a second storage-changed event (adBlockEnabled -> undefined) that the
+  // cosmetic engine would misread as "mode 0". Since every reader prefers the
+  // numeric adBlockMode, the stale boolean simply becomes inert.
   try {
     const stored = await chrome.storage.local.get(null);
     const patch = {};
@@ -353,9 +359,31 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  // Clear both the in-memory ring buffer and the persisted copy. Clearing only
+  // chrome.storage from the options page would be undone by the next debounced
+  // flush, which always re-writes the full in-memory AGENTIC_LOGS array.
+  if (message.action === "CLEAR_AGENTIC_LOGS") {
+    AGENTIC_LOGS.length = 0;
+    if (agenticLogFlushTimer) {
+      clearTimeout(agenticLogFlushTimer);
+      agenticLogFlushTimer = null;
+    }
+    chrome.storage.local.set({ agenticDebugLogs: [] }).catch(() => {});
+    safeSendResponse({ success: true });
+    return true;
+  }
+
   // Direct Instagram / Media Downloader API
   if (message.action === "DOWNLOAD_MEDIA") {
-    let filename = message.filename || "instagram_media.mp4";
+    // Filenames arrive from content scripts; strip any path components and
+    // characters that are illegal in download paths before handing them to
+    // the downloads API.
+    const sanitizeFilename = (name) => {
+      const base = String(name || "tabmaxxing_media").split(/[\\/]/).pop() || "tabmaxxing_media";
+      const cleaned = base.replace(/[\u0000-\u001f<>:"|?*]/g, "").trim();
+      return cleaned || "tabmaxxing_media";
+    };
+    const filename = sanitizeFilename(message.filename || "instagram_media.mp4");
     let rawUrl = message.url || "";
     const cleanUrl = rawUrl.replace(/&amp;/g, '&').replace(/\\u0026/g, '&').replace(/\\\//g, '/').replace(/["'\\].*$/, '').trim();
 
@@ -378,31 +406,39 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       });
     };
 
-    // data: URLs larger than ~2MB are rejected by the downloads API.
-    // Convert them to an in-memory blob URL first, then revoke it after start.
+    // data: URLs larger than ~2MB are rejected by the downloads API. The usual
+    // workaround (blob: URL) is unavailable because URL.createObjectURL does
+    // not exist in MV3 service workers, so attempt it only when the API is
+    // present and otherwise fall back to the raw data: URL.
     if (cleanUrl.startsWith("data:")) {
       (async () => {
+        let downloadUrl = cleanUrl;
+        let blobUrl = null;
         try {
-          const blob = await (await fetch(cleanUrl)).blob();
-          const blobUrl = URL.createObjectURL(blob);
-          chrome.downloads.download({
-            url: blobUrl,
-            filename: filename,
-            conflictAction: "uniquify",
-            saveAs: false
-          }, (downloadId) => {
-            setTimeout(() => { try { URL.revokeObjectURL(blobUrl); } catch (_) {} }, 120000);
-            if (chrome.runtime.lastError) {
-              agenticLog("DOWNLOAD_ERROR", chrome.runtime.lastError.message);
-              safeSendResponse({ success: false, error: chrome.runtime.lastError.message });
-            } else {
-              agenticLog("DOWNLOAD_SUCCESS", "Blob download ID:", downloadId);
-              safeSendResponse({ success: true, downloadId });
-            }
-          });
+          if (typeof URL.createObjectURL === "function") {
+            const blob = await (await fetch(cleanUrl)).blob();
+            blobUrl = URL.createObjectURL(blob);
+            downloadUrl = blobUrl;
+          }
         } catch (err) {
-          safeSendResponse({ success: false, error: `Blob conversion failed: ${err}` });
+          agenticLog("DOWNLOAD", "Blob conversion unavailable, using data URL directly", String(err));
+          downloadUrl = cleanUrl;
         }
+        chrome.downloads.download({
+          url: downloadUrl,
+          filename: filename,
+          conflictAction: "uniquify",
+          saveAs: false
+        }, (downloadId) => {
+          if (blobUrl) setTimeout(() => { try { URL.revokeObjectURL(blobUrl); } catch (_) {} }, 120000);
+          if (chrome.runtime.lastError) {
+            agenticLog("DOWNLOAD_ERROR", chrome.runtime.lastError.message);
+            safeSendResponse({ success: false, error: chrome.runtime.lastError.message });
+          } else {
+            agenticLog("DOWNLOAD_SUCCESS", "Data URL download ID:", downloadId);
+            safeSendResponse({ success: true, downloadId });
+          }
+        });
       })();
       return true;
     }
@@ -689,11 +725,23 @@ function showQrOverlay(targetUrl, tabId) {
 }
 
 // --- URL SHORTENER LOGIC ---
+// Uses the free is.gd API, which requires no account or API key. The previous
+// implementation called a third-party endpoint with a hardcoded API key that
+// no longer resolves to a real service, so shortening always failed.
 async function shortenUrlAPI(longUrl) {
-  const apiKey = 'fcdc158ebe36c6c0408bcb6c7e9a2fde';
-  const params = new URLSearchParams({ key: apiKey, url: longUrl, analytics: 'true', filterbots: 'false' });
-  const response = await fetch(`https://xgd.io/V1/shorten?${params.toString()}`);
-  return await response.json();
+  const params = new URLSearchParams({ format: 'json', url: longUrl });
+  const response = await fetch(`https://is.gd/create.php?${params.toString()}`);
+  if (!response.ok) {
+    return { status: response.status, message: `Shortener HTTP ${response.status}` };
+  }
+  const data = await response.json();
+  if (data && data.shorturl) {
+    return { status: 200, shorturl: data.shorturl };
+  }
+  return {
+    status: (data && data.errorcode) || 500,
+    message: (data && data.errormessage) || 'Shortener returned no URL'
+  };
 }
 
 async function generateAndCopyShortUrl(longUrl, tabId) {
@@ -793,9 +841,9 @@ async function handleBase64Upload(base64, tab, engineId) {
             form.submit();
             setTimeout(() => form.remove(), 1000);
           })
-          .catch(err => console.error("MediaBlock Pro: Google Lens upload failed", err));
+          .catch(err => console.error("TabMaxxing: Google Lens upload failed", err));
       }
-    }).catch(err => console.error("MediaBlock Pro: Script execution failed", err));
+    }).catch(err => console.error("TabMaxxing: Script execution failed", err));
   }
 
   if (engineId === 'yandex' || engineId === 'all') {

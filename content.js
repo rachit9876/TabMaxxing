@@ -667,7 +667,8 @@
     else if (key === "darkModeEnabled") { toggleDarkMode(value); }
     else if (key === "textSpoofingEnabled") { toggleTextSpoofing(value); }
     else if (key === "textSpoofingSeed") { updateTextSpoofSeed(value); }
-    else if (key === "adBlockEnabled") { if (typeof toggleCosmeticAdBlock === "function") toggleCosmeticAdBlock(value); }
+    // NOTE: adBlockMode / cosmetic filtering is fully self-managed by
+    // js/adblock/adblock-cosmetic.js, which reads the same storage directly.
     else if (key === "browserLockEnabled") { value ? showLockScreen() : document.getElementById('mb-lock-screen')?.remove(); }
     else if (key === "domainLockEnabled") { if (!value) document.getElementById('mb-domain-lock')?.remove(); }
     else if (STATE_MAP[key]) { value ? root.setAttribute(STATE_MAP[key], "true") : root.removeAttribute(STATE_MAP[key]); }
@@ -685,8 +686,14 @@
     });
     
     if (isLocked) {
-        const sessionKey = 'mb_unlocked_' + currentHost;
-        if (!sessionStorage.getItem(sessionKey)) {
+        // sessionStorage access can throw on pages that block storage
+        // (e.g. sandboxed iframes or cookies disabled); a lock failure must
+        // never break the rest of the content script.
+        let alreadyUnlocked = false;
+        try {
+          alreadyUnlocked = Boolean(sessionStorage.getItem('mb_unlocked_' + currentHost));
+        } catch (_) {}
+        if (!alreadyUnlocked) {
             showDomainLockScreen(currentHost);
         }
     }
@@ -743,7 +750,7 @@
     const submitPw = () => {
         chrome.runtime.sendMessage({ type: "UNLOCK_ATTEMPT", password: pwInput.value, isDomainUnlock: true }, (res) => {
             if (res && res.success) {
-                sessionStorage.setItem('mb_unlocked_' + domain, 'true');
+                try { sessionStorage.setItem('mb_unlocked_' + domain, 'true'); } catch (_) {}
                 overlay.remove();
             } else {
                 errDiv.style.display = 'block';
@@ -784,8 +791,9 @@
     shortcutAction: "toggle_blur", browserLockEnabled: false, browserLockPassword: "", urlHistory: [],
     textSpoofingEnabled: false, textSpoofingSeed: "mediablock",
     domainLockEnabled: false, lockedDomains: [],
-    instaDlEnabled: false, instaDlCopyEnabled: false,
-    adBlockEnabled: false
+    instaDlEnabled: false, instaDlCopyEnabled: false
+    // adBlockMode is intentionally absent: js/adblock/adblock-cosmetic.js
+    // reads and reacts to it on its own; the content script has no branch for it.
   };
 
   function init() {

@@ -151,20 +151,22 @@
   });
 
   // 1-Click Copy Image to Clipboard
-  document.getElementById("copyClipboardBtn").addEventListener("click", async () => {
-    try {
-      showToast("Copying image to clipboard...");
-      canvas.toBlob(async (blob) => {
+  document.getElementById("copyClipboardBtn").addEventListener("click", () => {
+    showToast("Copying image to clipboard...");
+    // Errors thrown inside the async toBlob callback are not caught by a
+    // try/catch around the call itself, so the handler must live inside.
+    canvas.toBlob(async (blob) => {
+      try {
         if (!blob) throw new Error("Canvas to blob failed");
         await navigator.clipboard.write([
           new ClipboardItem({ "image/png": blob })
         ]);
         showToast("Copied image to clipboard! (Ready to paste)");
-      }, "image/png");
-    } catch (err) {
-      console.error("Clipboard write failed:", err);
-      showToast("Clipboard copy failed");
-    }
+      } catch (err) {
+        console.error("Clipboard write failed:", err);
+        showToast("Clipboard copy failed");
+      }
+    }, "image/png");
   });
 
   // Download High-Res PNG
@@ -298,7 +300,7 @@
 
     try {
       undoCropBtn.disabled = true;
-      const { viewportWidth, totalHeight, dpr } = originalPayload;
+      const { viewportWidth, viewportHeight, totalHeight, dpr } = originalPayload;
       effectiveDpr = computeEffectiveDpr(dpr, viewportWidth, totalHeight);
       canvas.width = Math.round(viewportWidth * effectiveDpr);
       canvas.height = Math.round(Math.max(totalHeight, viewportHeight) * effectiveDpr);

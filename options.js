@@ -278,8 +278,9 @@ document.addEventListener('DOMContentLoaded', () => {
   if (inputs.adBlockMode) {
     inputs.adBlockMode.addEventListener('change', (e) => {
       const mode = parseInt(e.target.value, 10) || 0;
+      // Only the numeric adBlockMode is written; the legacy adBlockEnabled
+      // boolean is no longer needed (all readers prefer adBlockMode).
       updateSetting('adBlockMode', mode);
-      updateSetting('adBlockEnabled', mode >= 1);
       updateAdBlockExplainer(mode);
     });
   }
@@ -324,7 +325,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (inputs.blurIntensity) {
     inputs.blurIntensity.addEventListener('input', (e) => {
-      updateSetting('blurIntensity', parseInt(e.target.value, 10));
+      const parsed = parseInt(e.target.value, 10);
+      if (!Number.isFinite(parsed)) return;
+      updateSetting('blurIntensity', parsed);
       updateIntensityBadge();
     });
   }
@@ -419,7 +422,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (clearLogsBtn) {
     clearLogsBtn.addEventListener('click', () => {
-      chrome.storage.local.set({ agenticDebugLogs: [] }, () => {
+      // Clearing via the background service worker also resets its in-memory
+      // ring buffer; writing storage directly here would be undone by the
+      // next debounced flush of that buffer.
+      chrome.runtime.sendMessage({ action: "CLEAR_AGENTIC_LOGS" }, () => {
+        void chrome.runtime.lastError;
         renderLogs([]);
       });
     });

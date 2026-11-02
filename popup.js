@@ -199,21 +199,32 @@
         return;
       }
 
-      await chrome.scripting.insertCSS({ target: { tabId: tab.id }, files: ["capture.css"] });
-      await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ["capture.js"] });
-      window.close();
+      try {
+        await chrome.scripting.insertCSS({ target: { tabId: tab.id }, files: ["capture.css"] });
+        await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ["capture.js"] });
+        window.close();
+      } catch (_) {
+        // Some https pages (Chrome Web Store, PDF viewer...) forbid injection;
+        // surface the failure instead of throwing an unhandled rejection.
+        alert("TabMaxxing could not start the capture on this page (script injection is blocked).");
+      }
     });
   }
 
   function initImageSearch() {
     const btn = document.getElementById('searchImageBtn');
+    if (!btn) return;
     btn.addEventListener('click', async () => {
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       if (!tab?.url || !tab.url.startsWith("http")) return;
 
-      await chrome.scripting.insertCSS({ target: { tabId: tab.id }, files: ["selector.css"] });
-      await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ["selector.js"] });
-      window.close();
+      try {
+        await chrome.scripting.insertCSS({ target: { tabId: tab.id }, files: ["selector.css"] });
+        await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ["selector.js"] });
+        window.close();
+      } catch (_) {
+        alert("TabMaxxing could not start the crop search on this page (script injection is blocked).");
+      }
     });
   }
 
@@ -231,8 +242,9 @@
       }
       
       const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(content)}&bgcolor=FFFFFF&color=000000`;
+      img.onerror = () => { container.style.display = 'none'; };
+      img.onload = () => { container.style.display = 'flex'; };
       img.src = qrUrl;
-      container.style.display = 'flex';
     };
 
     btn.addEventListener('click', generate);
@@ -454,7 +466,9 @@
         e.stopPropagation();
         const targetMode = Number(btn.getAttribute('data-mode')) || 0;
         updateAdBlockModeUI(targetMode);
-        chrome.storage.local.set({ adBlockMode: targetMode, adBlockEnabled: targetMode >= 1 });
+        // Only the numeric adBlockMode is written; the legacy adBlockEnabled
+        // boolean is no longer needed (all readers prefer adBlockMode).
+        chrome.storage.local.set({ adBlockMode: targetMode });
       });
     });
 
