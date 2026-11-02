@@ -37,8 +37,12 @@
   // Crop State
   let isCropping = false;
   let isDrawingCrop = false;
+  let isDraggingCrop = false;
+  let activeResizeHandle = null;
   let cropStart = { x: 0, y: 0 };
+  let dragOffset = { x: 0, y: 0 };
   let cropRect = { x: 0, y: 0, w: 0, h: 0 };
+  let initialCropRect = { x: 0, y: 0, w: 0, h: 0 };
 
   function showToast(msg) {
     toastMsg.textContent = msg;
@@ -216,11 +220,58 @@
     toggleCropMode(false);
   });
 
+  function updateCropBoxUI(rect, overlayRect) {
+    cropBox.style.display = "block";
+    cropBox.style.left = `${rect.x}px`;
+    cropBox.style.top = `${rect.y}px`;
+    cropBox.style.width = `${rect.w}px`;
+    cropBox.style.height = `${rect.h}px`;
+
+    cropRect = { ...rect };
+
+    // Calculate real canvas pixel dimensions
+    const scaleX = canvas.width / overlayRect.width;
+    const scaleY = canvas.height / overlayRect.height;
+    const realW = Math.round(rect.w * scaleX);
+    const realH = Math.round(rect.h * scaleY);
+
+    cropDimBadge.textContent = `${realW} × ${realH} px`;
+  }
+
   cropOverlay.addEventListener("mousedown", (e) => {
-    if (e.target.closest("#cropBox") && !e.target.classList.contains("crop-overlay")) {
-      return; // Handled inside box
-    }
+    const handleEl = e.target.closest(".crop-handle");
+    const actionsPill = e.target.closest(".crop-actions-pill");
+    const insideBox = e.target.closest("#cropBox");
+
+    if (actionsPill) return; // Buttons handle their own clicks
+
     const rect = cropOverlay.getBoundingClientRect();
+
+    if (handleEl) {
+      // Resize handle clicked
+      e.stopPropagation();
+      e.preventDefault();
+      activeResizeHandle = handleEl.classList.contains("handle-tl") ? "tl"
+        : handleEl.classList.contains("handle-tr") ? "tr"
+        : handleEl.classList.contains("handle-bl") ? "bl"
+        : "br";
+      cropStart.x = e.clientX;
+      cropStart.y = e.clientY;
+      initialCropRect = { ...cropRect };
+      return;
+    }
+
+    if (insideBox) {
+      // Dragging entire crop box
+      e.stopPropagation();
+      e.preventDefault();
+      isDraggingCrop = true;
+      dragOffset.x = (e.clientX - rect.left) - cropRect.x;
+      dragOffset.y = (e.clientY - rect.top) - cropRect.y;
+      return;
+    }
+
+    // New crop drawing
     cropStart.x = e.clientX - rect.left;
     cropStart.y = e.clientY - rect.top;
     isDrawingCrop = true;
@@ -228,39 +279,67 @@
   });
 
   window.addEventListener("mousemove", (e) => {
-    if (!isDrawingCrop) return;
+    if (!isCropping) return;
     const rect = cropOverlay.getBoundingClientRect();
     const currentX = Math.max(0, Math.min(rect.width, e.clientX - rect.left));
     const currentY = Math.max(0, Math.min(rect.height, e.clientY - rect.top));
 
-    const left = Math.min(cropStart.x, currentX);
-    const top = Math.min(cropStart.y, currentY);
-    const width = Math.abs(currentX - cropStart.x);
-    const height = Math.abs(currentY - cropStart.y);
+    if (activeResizeHandle) {
+      // Resizing from corners
+      const dx = e.clientX - cropStart.x;
+      const dy = e.clientY - cropStart.y;
+      let { x, y, w, h } = initialCropRect;
 
-    if (width > 10 && height > 10) {
-      cropBox.style.display = "block";
-      cropBox.style.left = `${left}px`;
-      cropBox.style.top = `${top}px`;
-      cropBox.style.width = `${width}px`;
-      cropBox.style.height = `${height}px`;
+      if (activeResizeHandle === "tl") {
+        const newX = Math.min(x + dx, x + w - 20);
+        const newY = Math.min(y + dy, y + h - 20);
+        w = (x + w) - newX;
+        h = (y + h) - newY;
+        x = Math.max(0, newX);
+        y = Math.max(0, newY);
+      } else if (activeResizeHandle === "tr") {
+        const newY = Math.min(y + dy, y + h - 20);
+        w = Math.max(20, Math.min(rect.width - x, w + dx));
+        h = (y + h) - newY;
+        y = Math.max(0, newY);
+      } else if (activeResizeHandle === "bl") {
+        const newX = Math.min(x + dx, x + w - 20);
+        w = (x + w) - newX;
+        h = Math.max(20, Math.min(rect.height - y, h + dy));
+        x = Math.max(0, newX);
+      } else if (activeResizeHandle === "br") {
+        w = Math.max(20, Math.min(rect.width - x, w + dx));
+        h = Math.max(20, Math.min(rect.height - y, h + dy));
+      }
 
-      cropRect = { x: left, y: top, w: width, h: height };
+      updateCropBoxUI({ x, y, w, h }, rect);
+      return;
+    }
 
-      // Calculate real canvas pixel dimensions
-      const scaleX = canvas.width / rect.width;
-      const scaleY = canvas.height / rect.height;
-      const realW = Math.round(width * scaleX);
-      const realH = Math.round(height * scaleY);
+    if (isDraggingCrop) {
+      // Moving the crop box
+      const newX = Math.max(0, Math.min(rect.width - cropRect.w, (e.clientX - rect.left) - dragOffset.x));
+      const newY = Math.max(0, Math.min(rect.height - cropRect.h, (e.clientY - rect.top) - dragOffset.y));
+      updateCropBoxUI({ x: newX, y: newY, w: cropRect.w, h: cropRect.h }, rect);
+      return;
+    }
 
-      cropDimBadge.textContent = `${realW} × ${realH} px`;
+    if (isDrawingCrop) {
+      const left = Math.min(cropStart.x, currentX);
+      const top = Math.min(cropStart.y, currentY);
+      const width = Math.abs(currentX - cropStart.x);
+      const height = Math.abs(currentY - cropStart.y);
+
+      if (width > 10 && height > 10) {
+        updateCropBoxUI({ x: left, y: top, w: width, h: height }, rect);
+      }
     }
   });
 
   window.addEventListener("mouseup", () => {
-    if (isDrawingCrop) {
-      isDrawingCrop = false;
-    }
+    isDrawingCrop = false;
+    isDraggingCrop = false;
+    activeResizeHandle = null;
   });
 
   // Apply Crop

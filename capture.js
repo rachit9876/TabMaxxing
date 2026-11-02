@@ -119,8 +119,11 @@
           break;
         }
 
-        // Temporarily hide the progress overlay so it is NOT captured in the screenshot
+        // Temporarily hide the progress overlay so it is NOT captured in the screenshot.
+        // We set display='none' and wait for requestAnimationFrame / a tick so Chrome's
+        // compositor actually paints the frame without the overlay before capturing.
         overlay.style.display = "none";
+        await new Promise(r => requestAnimationFrame(() => setTimeout(r, 60)));
 
         // Capture visible slice via background service worker
         const res = await new Promise(resolve => {
@@ -134,7 +137,7 @@
           }
         });
 
-        // Restore overlay immediately for user progress visibility
+        // Restore overlay for user progress visibility
         overlay.style.display = "flex";
 
         if (!res || !res.dataUrl) {
