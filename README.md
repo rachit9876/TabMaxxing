@@ -6,8 +6,8 @@
 
 <div align="left">
 
-| <img src="https://dr-fast-upload.pages.dev/public/7c80c0b7700c.webp" /> |
-| :---: |
+| <img src="https://dr-fast-upload.pages.dev/public/7c80c0b7700c.webp" /> | <img src="https://dr-fast-upload.pages.dev/public/6cffd7bcc594.webp" /> |
+| :---: | :---: |
 
 </div>
 
