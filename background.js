@@ -375,21 +375,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
-  // Capture visible viewport for area snipping tool
-  if (message.action === "capture_visible_tab") {
+  // Capture visible viewport (used by area snipping tool and full-page slice stitcher)
+  if (message.action === "capture_visible_tab" || message.action === "CAPTURE_VISIBLE_TAB_SLICE") {
     const windowId = sender.tab?.windowId ?? chrome.windows.WINDOW_ID_CURRENT;
     chrome.tabs.captureVisibleTab(windowId, { format: 'png' })
       .then(dataUrl => safeSendResponse({ dataUrl }))
       .catch(err => safeSendResponse({ error: err ? err.message : "Capture failed" }));
-    return true;
-  }
-
-  // Full-Page Scrolling Slice Capture
-  if (message.action === "CAPTURE_VISIBLE_TAB_SLICE") {
-    const windowId = sender.tab?.windowId ?? chrome.windows.WINDOW_ID_CURRENT;
-    chrome.tabs.captureVisibleTab(windowId, { format: 'png' })
-      .then(dataUrl => safeSendResponse({ dataUrl }))
-      .catch(err => safeSendResponse({ error: err ? err.message : "Slice capture failed" }));
     return true;
   }
 

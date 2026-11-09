@@ -64,11 +64,23 @@
     document.documentElement.style.scrollBehavior = "auto";
 
     // Find fixed/sticky elements to avoid duplication during scrolling
-    const fixedElements = Array.from(document.querySelectorAll("*")).filter(el => {
-      if (el === overlay || el.contains(overlay)) return false;
-      const pos = window.getComputedStyle(el).position;
-      return (pos === "fixed" || pos === "sticky") && el.offsetHeight > 0 && el.offsetHeight < window.innerHeight * 0.75;
-    });
+    const LEAF_SKIP_TAGS = new Set(["SVG", "PATH", "G", "CIRCLE", "RECT", "LINE", "POLYGON", "SPAN", "A", "IMG", "P", "I", "B", "STRONG", "EM", "CODE", "PRE", "SCRIPT", "STYLE", "LINK", "META", "NOSCRIPT", "BR", "HR"]);
+    const fixedElements = new Set();
+    function collectFixedStickyElements() {
+      const all = document.body ? document.body.querySelectorAll("*") : [];
+      for (let i = 0; i < all.length; i++) {
+        const el = all[i];
+        if (LEAF_SKIP_TAGS.has(el.tagName)) continue;
+        if (el === overlay || el.contains(overlay) || fixedElements.has(el)) continue;
+        const h = el.offsetHeight;
+        if (h <= 0 || h >= window.innerHeight * 0.75) continue;
+        const pos = window.getComputedStyle(el).position;
+        if (pos === "fixed" || pos === "sticky") {
+          fixedElements.add(el);
+        }
+      }
+    }
+    collectFixedStickyElements();
 
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
@@ -103,8 +115,9 @@
         // Scroll to position
         window.scrollTo(0, currentY);
 
-        // Hide sticky/fixed headers on subsequent chunks
+        // Hide sticky/fixed headers on subsequent chunks (re-scan on chunk 1 to catch scroll-triggered sticky bars)
         if (chunkIndex > 0) {
+          if (chunkIndex === 1) collectFixedStickyElements();
           fixedElements.forEach(el => el.classList.add("tabmax-hide-sticky"));
         }
 

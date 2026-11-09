@@ -120,8 +120,8 @@
       const results = await chrome.scripting.executeScript({
         target: { tabId: tab.id },
         func: () => ({
-          images: document.querySelectorAll("img, picture, svg image, canvas, [role='img']").length,
-          videos: document.querySelectorAll("video, iframe[src*='youtube'], iframe[src*='vimeo']").length
+          images: document.querySelectorAll("img, picture, svg image, canvas, [role='img'], [style*='background-image'], [data-mb-media='img'], [data-mb-media='bg']").length,
+          videos: document.querySelectorAll("video, iframe[src*='youtube'], iframe[src*='vimeo'], iframe[src*='dailymotion'], iframe[src*='twitch'], iframe[src*='tiktok'], iframe[src*='instagram'], [data-mb-media='vid']").length
         })
       });
 

@@ -157,6 +157,12 @@
     ${prefix(':root[data-mb-target-img="true"][data-mb-block="true"]', BG_SELECTORS)} {
       background-image: none !important;
     }
+    :root[data-mb-frc="true"],
+    :root[data-mb-frc="true"] * {
+      -webkit-user-select: text !important;
+      user-select: text !important;
+      pointer-events: auto !important;
+    }
     ${DARK_MODE_CSS}
   `;
 
@@ -215,22 +221,35 @@
   }
 
   let mediaObserver = null;
-  function initMediaObserver() {
+  function isAnyVisualFilterActive() {
+    const r = document.documentElement;
+    return r.hasAttribute('data-mb-blur') ||
+           r.hasAttribute('data-mb-invert') ||
+           r.hasAttribute('data-mb-uniform') ||
+           r.hasAttribute('data-mb-block') ||
+           r.hasAttribute('data-mb-hover') ||
+           r.hasAttribute('data-mb-darkmode');
+  }
+
+  function syncMediaObserver() {
+    if (!isAnyVisualFilterActive()) {
+      if (mediaObserver) {
+        mediaObserver.disconnect();
+        mediaObserver = null;
+      }
+      return;
+    }
+    scheduleMediaScan();
     if (mediaObserver) return;
     try {
       mediaObserver = new MutationObserver((mutations) => {
-        let shouldScan = false;
         for (let i = 0; i < mutations.length; i++) {
           const m = mutations[i];
-          if (m.type === 'childList' && m.addedNodes.length > 0) {
-            shouldScan = true;
-            break;
-          } else if (m.type === 'attributes' && (m.attributeName === 'style' || m.attributeName === 'src' || m.attributeName === 'class')) {
-            shouldScan = true;
+          if ((m.type === 'childList' && m.addedNodes.length > 0) || m.type === 'attributes') {
+            scheduleMediaScan();
             break;
           }
         }
-        if (shouldScan) scheduleMediaScan();
       });
       mediaObserver.observe(document.documentElement || document, {
         childList: true,
@@ -277,7 +296,7 @@
   }
 
   let isForceRightClickOn = false;
-  const FRC_EVENTS = ['contextmenu', 'copy', 'selectstart'];
+  const FRC_EVENTS = ['contextmenu', 'copy', 'cut', 'paste', 'selectstart'];
   function onFrcCaptureEvent(e) {
     if (isForceRightClickOn) {
       e.stopPropagation();
@@ -287,27 +306,25 @@
 
   function toggleForceRightClick(enabled) {
     isForceRightClickOn = Boolean(enabled);
+    document.documentElement.toggleAttribute("data-mb-frc", isForceRightClickOn);
+    if (isForceRightClickOn) {
+      try {
+        document.oncontextmenu = null;
+        document.onselectstart = null;
+        document.oncopy = null;
+        if (document.body) {
+          document.body.oncontextmenu = null;
+          document.body.onselectstart = null;
+          document.body.oncopy = null;
+        }
+      } catch (_) {}
+    }
     FRC_EVENTS.forEach(evt => {
       window.removeEventListener(evt, onFrcCaptureEvent, true);
       if (isForceRightClickOn) {
         window.addEventListener(evt, onFrcCaptureEvent, true);
       }
     });
-    toggleForceRightClickStyle(isForceRightClickOn);
-  }
-
-
-
-  function toggleForceRightClickStyle(enabled) {
-      let styleEl = document.getElementById("__mb_frc_style__");
-      if (enabled) {
-          if (!styleEl) {
-              styleEl = document.createElement('style');
-              styleEl.id = "__mb_frc_style__";
-              styleEl.innerHTML = `* { -webkit-user-select: text !important; user-select: text !important; pointer-events: auto !important; }`;
-              (document.head || document.documentElement).appendChild(styleEl);
-          }
-      } else { if (styleEl) styleEl.remove(); }
   }
 
   let isStableVolumeOn = false; 
@@ -463,51 +480,48 @@
     }
   }
 
-  function toggleMonoAudioLive(enabled) {
-    isMonoAudioOn = enabled; 
-    const mediaEls = document.querySelectorAll('video, audio'); 
-    if (enabled) mediaEls.forEach(attachAudioProcessing);
-    mediaEls.forEach(el => { 
-      const nodes = processedMedia.get(el); 
-      if (nodes && nodes.monoNode) updateMonoNodeState(nodes.monoNode, enabled); 
+  function syncAllAudioNodes() {
+    const anyAudioActive = isStableVolumeOn || isMonoAudioOn || isSmoothVolumeOn;
+    const mediaEls = document.querySelectorAll('video, audio');
+    if (anyAudioActive) mediaEls.forEach(attachAudioProcessing);
+
+    const ctxTime = audioCtx ? audioCtx.currentTime : 0;
+    mediaEls.forEach(el => {
+      const nodes = processedMedia.get(el);
+      if (!nodes) return;
+      if (nodes.monoNode) updateMonoNodeState(nodes.monoNode, isMonoAudioOn);
+      if (nodes.effectGain && nodes.bypassGain) {
+        nodes.effectGain.gain.setTargetAtTime(isStableVolumeOn ? 1 : 0, ctxTime, 0.05);
+        nodes.bypassGain.gain.setTargetAtTime(isStableVolumeOn ? 0 : 1, ctxTime, 0.05);
+      }
+      if (nodes.compressor && audioCtx) {
+        nodes.compressor.threshold.setTargetAtTime(currentAudioLufs, ctxTime, 0.1);
+      }
+      if (nodes.fadeGain && audioCtx && !isSmoothVolumeOn) {
+        nodes.fadeGain.gain.cancelScheduledValues(ctxTime);
+        nodes.fadeGain.gain.setTargetAtTime(1, ctxTime, 0.05);
+      }
+      updateEQNodes(nodes);
     });
-    if (enabled && audioCtx && audioCtx.state === 'suspended') {
+
+    if (anyAudioActive && audioCtx && audioCtx.state === 'suspended' && hasUserInteracted) {
       audioCtx.resume().catch(() => {});
     }
   }
 
-  function toggleStableVolumeLive(enabled) {
-    isStableVolumeOn = enabled; 
-    const mediaEls = document.querySelectorAll('video, audio'); 
-    if (enabled) mediaEls.forEach(attachAudioProcessing);
-    mediaEls.forEach(el => { 
-      const nodes = processedMedia.get(el); 
-      if (nodes) { 
-        const ctxTime = audioCtx ? audioCtx.currentTime : 0;
-        nodes.effectGain.gain.setTargetAtTime(enabled ? 1 : 0, ctxTime, 0.05); 
-        nodes.bypassGain.gain.setTargetAtTime(enabled ? 0 : 1, ctxTime, 0.05); 
-        updateEQNodes(nodes); 
-      } 
-    });
-    if (enabled && audioCtx && audioCtx.state === 'suspended') {
-      audioCtx.resume().catch(() => {});
-    }
+  function toggleMonoAudioLive(enabled) {
+    isMonoAudioOn = Boolean(enabled);
+    syncAllAudioNodes();
   }
-  
+
+  function toggleStableVolumeLive(enabled) {
+    isStableVolumeOn = Boolean(enabled);
+    syncAllAudioNodes();
+  }
+
   function toggleSmoothVolumeLive(enabled) {
-    isSmoothVolumeOn = enabled;
-    const mediaEls = document.querySelectorAll('video, audio'); 
-    if (enabled) mediaEls.forEach(attachAudioProcessing);
-    mediaEls.forEach(el => { 
-      const nodes = processedMedia.get(el); 
-      if (nodes && audioCtx) {
-        nodes.fadeGain.gain.cancelScheduledValues(audioCtx.currentTime);
-        nodes.fadeGain.gain.setTargetAtTime(1, audioCtx.currentTime, 0.05); 
-      }
-    });
-    if (enabled && audioCtx && audioCtx.state === 'suspended') {
-      audioCtx.resume().catch(() => {});
-    }
+    isSmoothVolumeOn = Boolean(enabled);
+    syncAllAudioNodes();
   }
 
   // Resume AudioContext only on real user interaction to strictly adhere to autoplay policy
@@ -676,17 +690,8 @@
     return TEXT_SKIP_TAGS.has(parent.tagName);
   }
 
-  function shouldSkipTextNode(node) {
-    if (shouldIgnoreTextNode(node)) return true;
-    const parent = node.parentElement;
-    if (!parent) return true;
-
-    const style = window.getComputedStyle(parent);
-    return style.display === "none" || style.visibility === "hidden" || Number(style.opacity) === 0;
-  }
-
   function spoofTextNode(node, alreadyValidated = false) {
-    if (!alreadyValidated && shouldSkipTextNode(node)) return;
+    if (!alreadyValidated && shouldIgnoreTextNode(node)) return;
 
     const existing = textSpoofState.get(node);
     const original = existing ? existing.original : node.nodeValue;
@@ -714,11 +719,11 @@
     textSpoofState.delete(node);
   }
 
-  function walkTextNodes(root, callback, includeHidden = false) {
+  function walkTextNodes(root, callback) {
     if (!root) return;
 
     if (root.nodeType === Node.TEXT_NODE) {
-      if (includeHidden ? !shouldIgnoreTextNode(root) : !shouldSkipTextNode(root)) callback(root, true);
+      if (!shouldIgnoreTextNode(root)) callback(root, true);
       return;
     }
 
@@ -728,8 +733,7 @@
 
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
       acceptNode(node) {
-        const skip = includeHidden ? shouldIgnoreTextNode(node) : shouldSkipTextNode(node);
-        return skip ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT;
+        return shouldIgnoreTextNode(node) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT;
       }
     });
 
@@ -742,22 +746,11 @@
     walkTextNodes(document.body || document.documentElement, spoofTextNode);
   }
 
-  let textSpoofScheduleTimer = null;
-  function scheduleTextSpoofing() {
-    if (!textSpoofingEnabled) return;
-    if (textSpoofScheduleTimer) clearTimeout(textSpoofScheduleTimer);
-    textSpoofScheduleTimer = setTimeout(() => {
-      textSpoofScheduleTimer = null;
-      applyTextSpoofingToPage();
-    }, 500);
-  }
-
   function startTextSpoofObserver() {
     if (textSpoofObserver) return;
     textSpoofObserver = new MutationObserver((mutations) => {
       if (textSpoofApplyDepth > 0 || !textSpoofingEnabled) return;
 
-      let needsFullPass = false;
       mutations.forEach(mutation => {
         if (mutation.type === "characterData") {
           const existing = textSpoofState.get(mutation.target);
@@ -774,18 +767,12 @@
             walkTextNodes(node, spoofTextNode);
           }
         });
-
-        if (mutation.type === "attributes") needsFullPass = true;
       });
-
-      if (needsFullPass) scheduleTextSpoofing();
     });
     textSpoofObserver.observe(document.documentElement, {
       childList: true,
       subtree: true,
-      characterData: true,
-      attributes: true,
-      attributeFilter: ["class", "style", "hidden", "aria-hidden"]
+      characterData: true
     });
   }
 
@@ -799,14 +786,14 @@
       if (!document.body) window.addEventListener("DOMContentLoaded", applyTextSpoofingToPage, { once: true });
     } else {
       if (textSpoofObserver) { textSpoofObserver.disconnect(); textSpoofObserver = null; }
-      walkTextNodes(document.body || document.documentElement, restoreTextNode, true);
+      walkTextNodes(document.body || document.documentElement, restoreTextNode);
     }
   }
 
   function updateTextSpoofSeed(seed) {
     textSpoofingSeed = String(seed || "mediablock");
     if (textSpoofingEnabled) {
-      walkTextNodes(document.body || document.documentElement, restoreTextNode, true);
+      walkTextNodes(document.body || document.documentElement, restoreTextNode);
       applyTextSpoofingToPage();
     }
   }
@@ -828,15 +815,7 @@
     const root = document.documentElement;
     root.style.setProperty("--mb-blur-val", `${currentBlurVal}px`);
     root.setAttribute("data-mb-blur-mode", currentBlurMode);
-    if (root.getAttribute("data-mb-blur") !== "true") {
-      root.style.setProperty("--mb-blur-filter", "blur(0px)");
-      return;
-    }
-    if (currentBlurMode === "pixelate") {
-      root.style.setProperty("--mb-blur-filter", "url(#mb-pixelate-filter)");
-    } else {
-      root.style.setProperty("--mb-blur-filter", `blur(${currentBlurVal}px)`);
-    }
+    root.style.removeProperty("--mb-blur-filter");
   }
 
   let isTabScoped = false;
@@ -847,23 +826,18 @@
     const root = document.documentElement;
     if (key === "blurIntensity") { currentBlurVal = value; updateVisualFilter(); }
     else if (key === "blurMode") { currentBlurMode = value; updateVisualFilter(); }
-    else if (key === "mediaBlurEnabled") { value ? root.setAttribute("data-mb-blur", "true") : root.removeAttribute("data-mb-blur"); updateVisualFilter(); }
+    else if (key === "mediaBlurEnabled") { value ? root.setAttribute("data-mb-blur", "true") : root.removeAttribute("data-mb-blur"); updateVisualFilter(); syncMediaObserver(); }
     else if (key === "forceRightClickEnabled") { toggleForceRightClick(value); }
     else if (key === "stableVolumeEnabled") { toggleStableVolumeLive(value); }
     else if (key === "monoAudioEnabled") { toggleMonoAudioLive(value); }
     else if (key === "smoothVolumeEnabled") { toggleSmoothVolumeLive(value); }
-    else if (key === "audioEqMode") { audioEqMode = value; document.querySelectorAll('video, audio').forEach(el => updateEQNodes(processedMedia.get(el))); }
-    else if (key === "audioLufs") { 
-        const parsed = Number(value);
-        currentAudioLufs = Number.isFinite(parsed) && parsed <= 0 ? parsed : -12; 
-        document.querySelectorAll('video, audio').forEach(el => {
-            const nodes = processedMedia.get(el);
-            if (nodes && nodes.compressor && audioCtx) {
-              nodes.compressor.threshold.setTargetAtTime(currentAudioLufs, audioCtx.currentTime, 0.1);
-            }
-        });
+    else if (key === "audioEqMode") { audioEqMode = value; syncAllAudioNodes(); }
+    else if (key === "audioLufs") {
+      const parsed = Number(value);
+      currentAudioLufs = Number.isFinite(parsed) && parsed <= 0 ? parsed : -12;
+      syncAllAudioNodes();
     }
-    else if (key === "darkModeEnabled") { toggleDarkMode(value); }
+    else if (key === "darkModeEnabled") { toggleDarkMode(value); syncMediaObserver(); }
     else if (key === "textSpoofingEnabled") { toggleTextSpoofing(value); }
     else if (key === "textSpoofingSeed") { updateTextSpoofSeed(value); }
     // media-dl.js runs as a separate content script and owns its own enabled
@@ -876,7 +850,10 @@
     // js/adblock/adblock-cosmetic.js, which reads the same storage directly.
     else if (key === "browserLockEnabled") { value ? showLockScreen() : document.getElementById('mb-lock-screen')?.remove(); }
     else if (key === "domainLockEnabled") { if (!value) document.getElementById('mb-domain-lock')?.remove(); }
-    else if (STATE_MAP[key]) { value ? root.setAttribute(STATE_MAP[key], "true") : root.removeAttribute(STATE_MAP[key]); }
+    else if (STATE_MAP[key]) {
+      value ? root.setAttribute(STATE_MAP[key], "true") : root.removeAttribute(STATE_MAP[key]);
+      syncMediaObserver();
+    }
   }
 
   function checkDomainLock(state) {
@@ -1003,11 +980,11 @@
 
   function init() {
     injectMasterStyle();
-    initMediaObserver();
     initHoverUnveil();
-    scheduleMediaScan();
     if (document.readyState === "loading") {
-      document.addEventListener("DOMContentLoaded", scheduleMediaScan, { once: true });
+      document.addEventListener("DOMContentLoaded", () => {
+        if (isAnyVisualFilterActive()) scheduleMediaScan();
+      }, { once: true });
     }
     chrome.storage.local.get(DEFAULTS, (state) => {
       if (!state) return;
