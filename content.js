@@ -45,9 +45,9 @@
     } catch (_) {}
   });
 
-  const IMG_SELECTORS = 'img, picture, canvas, svg image, object[type^="image"], embed[type^="image"], [role="img"]';
-  const BG_SELECTORS = '[style*="background-image"], [style*="url("]';
-  const VID_SELECTORS = 'video, iframe[src*="youtube"], iframe[src*="vimeo"], iframe[src*="dailymotion"], iframe[src*="twitch"], iframe[src*="tiktok"], iframe[src*="facebook"], iframe[src*="instagram"], iframe[src*="twitter"], iframe[src*="x.com"], object[type^="video"], embed[type^="video"]';
+  const IMG_SELECTORS = 'img, picture, canvas, svg image, object[type^="image"], embed[type^="image"], [role="img"], [data-mb-media="img"], [style*="background-image"], [style*="url("], [data-mb-media="bg"], [data-mb-media="pseudo"]';
+  const BG_SELECTORS = '[style*="background-image"], [style*="url("], [data-mb-media="bg"], [data-mb-media="pseudo"]';
+  const VID_SELECTORS = 'video, iframe[src*="youtube"], iframe[src*="vimeo"], iframe[src*="dailymotion"], iframe[src*="twitch"], iframe[src*="tiktok"], iframe[src*="facebook"], iframe[src*="instagram"], iframe[src*="twitter"], iframe[src*="x.com"], object[type^="video"], embed[type^="video"], [data-mb-media="vid"]';
   
   const prefix = (parent, selectors) => selectors.split(',').map(s => `${parent} ${s.trim()}`).join(', ');
 
@@ -65,26 +65,215 @@
     ${prefix('html[data-mb-darkmode="true"]', IMG_SELECTORS)},
     ${prefix('html[data-mb-darkmode="true"]', VID_SELECTORS)},
     ${prefix('html[data-mb-darkmode="true"]', BG_SELECTORS)} {
-      filter: invert(1) hue-rotate(180deg) !important;
+      filter: var(--mb-media-filter, invert(1) hue-rotate(180deg)) !important;
     }
-    /* When Media Invert feature is explicitly enabled on images/videos, apply user negative filter */
+    /* When Media Invert feature is explicitly enabled on images/videos in dark mode */
     ${prefix('html[data-mb-darkmode="true"]:root[data-mb-target-img="true"][data-mb-invert="true"]', IMG_SELECTORS)},
     ${prefix('html[data-mb-darkmode="true"]:root[data-mb-target-vid="true"][data-mb-invert="true"]', VID_SELECTORS)} {
-      filter: none !important;
+      filter: var(--mb-media-filter, none) !important;
     }
   `;
 
-  const MASTER_CSS = `:root { --mb-blur-filter: blur(0px); --mb-grayscale: 0%; --mb-invert: 0; --mb-hue: 0deg; --mb-opacity: 1; } :root[data-mb-invert="true"] { --mb-invert: 1; --mb-hue: 180deg; } :root[data-mb-uniform="true"] { --mb-grayscale: 100%; } :root[data-mb-block="true"] { --mb-opacity: 0; } ${prefix(':root[data-mb-target-img="true"]', IMG_SELECTORS)}, ${prefix(':root[data-mb-target-vid="true"]', VID_SELECTORS)} { filter: var(--mb-blur-filter) grayscale(var(--mb-grayscale)) invert(var(--mb-invert)) hue-rotate(var(--mb-hue)) !important; opacity: var(--mb-opacity) !important; } ${prefix(':root[data-mb-ready="true"][data-mb-target-img="true"]', IMG_SELECTORS)}, ${prefix(':root[data-mb-ready="true"][data-mb-target-vid="true"]', VID_SELECTORS)} { transition: filter 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.4s ease !important; } ${prefix(':root[data-mb-target-vid="true"]', VID_SELECTORS)} { transform: translateZ(0); } ${prefix(':root[data-mb-target-img="true"][data-mb-hover="true"]', IMG_SELECTORS).split(',').map(s => `${s.trim()}:hover`).join(', ')}, ${prefix(':root[data-mb-target-vid="true"][data-mb-hover="true"]', VID_SELECTORS).split(',').map(s => `${s.trim()}:hover`).join(', ')} { --mb-blur-filter: blur(0px) !important; --mb-grayscale: 0% !important; --mb-invert: 0 !important; --mb-hue: 0deg !important; --mb-opacity: 1 !important; } ${prefix(':root[data-mb-target-img="true"][data-mb-hover="true"]', IMG_SELECTORS)}, ${prefix(':root[data-mb-target-vid="true"][data-mb-hover="true"]', VID_SELECTORS)} { cursor: pointer !important; } ${prefix(':root[data-mb-target-img="true"][data-mb-block="true"]', 'img')} { position: relative !important; visibility: hidden !important; } ${prefix(':root[data-mb-target-img="true"][data-mb-block="true"]', 'img')}::after { content: attr(alt) " (Media Blocked)" !important; visibility: visible !important; position: absolute !important; top: 0 !important; left: 0 !important; width: 100% !important; height: 100% !important; background: #1a1a1f !important; color: #a0a0b0 !important; font-size: 13px !important; font-family: sans-serif !important; display: flex !important; align-items: center !important; justify-content: center !important; text-align: center !important; padding: 8px !important; box-sizing: border-box !important; border: 1px dashed #3a3a4a !important; overflow: hidden !important; text-overflow: ellipsis !important; } ${prefix(':root[data-mb-target-vid="true"][data-mb-block="true"]', VID_SELECTORS)} { pointer-events: none !important; } ${prefix(':root[data-mb-target-img="true"][data-mb-block="true"]', BG_SELECTORS)} { background-image: none !important; } ${DARK_MODE_CSS}`;
+  const MASTER_CSS = `
+    :root {
+      --mb-blur-filter: blur(0px);
+      --mb-blur-val: 25px;
+      --mb-grayscale: 0%;
+      --mb-invert: 0;
+      --mb-hue: 0deg;
+      --mb-opacity: 1;
+      --mb-media-filter: var(--mb-blur-filter) grayscale(var(--mb-grayscale)) invert(var(--mb-invert)) hue-rotate(var(--mb-hue));
+    }
+    :root[data-mb-blur="true"] {
+      --mb-blur-filter: blur(var(--mb-blur-val, 25px));
+    }
+    :root[data-mb-blur="true"][data-mb-blur-mode="pixelate"] {
+      --mb-blur-filter: url(#mb-pixelate-filter);
+    }
+    :root[data-mb-invert="true"] {
+      --mb-invert: 1;
+      --mb-hue: 180deg;
+    }
+    :root[data-mb-uniform="true"] {
+      --mb-grayscale: 100%;
+    }
+    :root[data-mb-block="true"] {
+      --mb-opacity: 0;
+    }
+    ${prefix(':root[data-mb-target-img="true"]', IMG_SELECTORS)},
+    ${prefix(':root[data-mb-target-vid="true"]', VID_SELECTORS)} {
+      filter: var(--mb-media-filter) !important;
+      opacity: var(--mb-opacity) !important;
+    }
+    ${prefix(':root[data-mb-ready="true"][data-mb-target-img="true"]', IMG_SELECTORS)},
+    ${prefix(':root[data-mb-ready="true"][data-mb-target-vid="true"]', VID_SELECTORS)} {
+      transition: filter 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease !important;
+    }
+    ${prefix(':root[data-mb-target-vid="true"]', VID_SELECTORS)} {
+      transform: translateZ(0);
+    }
+    ${prefix(':root[data-mb-target-img="true"][data-mb-hover="true"]', IMG_SELECTORS).split(',').map(s => `${s.trim()}:hover, ${s.trim()}.tabmax-hover-unveil`).join(', ')},
+    ${prefix(':root[data-mb-target-vid="true"][data-mb-hover="true"]', VID_SELECTORS).split(',').map(s => `${s.trim()}:hover, ${s.trim()}.tabmax-hover-unveil`).join(', ')} {
+      --mb-blur-filter: blur(0px) !important;
+      --mb-grayscale: 0% !important;
+      --mb-invert: 0 !important;
+      --mb-hue: 0deg !important;
+      --mb-opacity: 1 !important;
+      filter: none !important;
+    }
+    ${prefix(':root[data-mb-target-img="true"][data-mb-hover="true"]', IMG_SELECTORS)},
+    ${prefix(':root[data-mb-target-vid="true"][data-mb-hover="true"]', VID_SELECTORS)} {
+      cursor: pointer !important;
+    }
+    ${prefix(':root[data-mb-target-img="true"][data-mb-block="true"]', 'img')} {
+      position: relative !important;
+      visibility: hidden !important;
+    }
+    ${prefix(':root[data-mb-target-img="true"][data-mb-block="true"]', 'img')}::after {
+      content: attr(alt) " (Media Blocked)" !important;
+      visibility: visible !important;
+      position: absolute !important;
+      top: 0 !important;
+      left: 0 !important;
+      width: 100% !important;
+      height: 100% !important;
+      background: #1a1a1f !important;
+      color: #a0a0b0 !important;
+      font-size: 13px !important;
+      font-family: sans-serif !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      text-align: center !important;
+      padding: 8px !important;
+      box-sizing: border-box !important;
+      border: 1px dashed #3a3a4a !important;
+      overflow: hidden !important;
+      text-overflow: ellipsis !important;
+    }
+    ${prefix(':root[data-mb-target-vid="true"][data-mb-block="true"]', VID_SELECTORS)} {
+      pointer-events: none !important;
+    }
+    ${prefix(':root[data-mb-target-img="true"][data-mb-block="true"]', BG_SELECTORS)} {
+      background-image: none !important;
+    }
+    ${DARK_MODE_CSS}
+  `;
 
   function injectMasterStyle() {
     if (!document.getElementById("__mb_svg_filters__")) {
-      const svgContainer = document.createElement("div"); svgContainer.innerHTML = PIXELATE_SVG;
+      const svgContainer = document.createElement("div");
+      svgContainer.id = "__mb_svg_filters__";
+      svgContainer.style.cssText = "position:absolute;width:0;height:0;overflow:hidden;z-index:-1;";
+      svgContainer.innerHTML = PIXELATE_SVG;
       (document.body || document.documentElement).appendChild(svgContainer);
     }
     if (!document.getElementById("__mediablock_master_style__")) {
-      const style = document.createElement("style"); style.id = "__mediablock_master_style__"; style.textContent = MASTER_CSS;
+      const style = document.createElement("style");
+      style.id = "__mediablock_master_style__";
+      style.textContent = MASTER_CSS;
       (document.head || document.documentElement).appendChild(style);
     }
+  }
+
+  // --- Smart Media Scanner & MutationObserver Pipeline ---
+  // Like MediaDL, modern SPAs render images as background-image, inside shadow DOMs,
+  // via canvas/svg, or hidden under transparent overlay wrappers (Instagram, Twitter, etc.).
+  // This scanner tags elements with data-mb-media so CSS rules reliably catch them.
+  const SCAN_MEDIA_SEL = 'img, picture, video, canvas, svg image, [role="img"], [style*="background-image"], [style*="url("]';
+  let scanScheduled = false;
+
+  function scanAndTagMediaElements(root = document) {
+    if (!root || !root.querySelectorAll) return;
+    try {
+      const candidates = root.querySelectorAll(SCAN_MEDIA_SEL);
+      for (let i = 0; i < candidates.length; i++) {
+        const el = candidates[i];
+        if (el.dataset.mbMedia) continue;
+        const tag = el.tagName.toLowerCase();
+        if (tag === 'video' || tag === 'iframe') {
+          el.dataset.mbMedia = 'vid';
+        } else if (tag === 'img' || tag === 'picture' || tag === 'canvas' || tag === 'image' || el.getAttribute('role') === 'img') {
+          el.dataset.mbMedia = 'img';
+        } else {
+          const bg = el.style.backgroundImage || window.getComputedStyle(el).backgroundImage;
+          if (bg && bg !== 'none' && bg.includes('url(')) {
+            el.dataset.mbMedia = 'bg';
+          }
+        }
+      }
+    } catch (_) {}
+  }
+
+  function scheduleMediaScan() {
+    if (scanScheduled) return;
+    scanScheduled = true;
+    requestAnimationFrame(() => {
+      scanScheduled = false;
+      scanAndTagMediaElements(document);
+    });
+  }
+
+  let mediaObserver = null;
+  function initMediaObserver() {
+    if (mediaObserver) return;
+    try {
+      mediaObserver = new MutationObserver((mutations) => {
+        let shouldScan = false;
+        for (let i = 0; i < mutations.length; i++) {
+          const m = mutations[i];
+          if (m.type === 'childList' && m.addedNodes.length > 0) {
+            shouldScan = true;
+            break;
+          } else if (m.type === 'attributes' && (m.attributeName === 'style' || m.attributeName === 'src' || m.attributeName === 'class')) {
+            shouldScan = true;
+            break;
+          }
+        }
+        if (shouldScan) scheduleMediaScan();
+      });
+      mediaObserver.observe(document.documentElement || document, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ['style', 'src', 'class']
+      });
+    } catch (_) {}
+  }
+
+  // Hover unblur support: when mediaHoverEnabled is active, detect media
+  // even under transparent overlay layers (using elementsFromPoint like MediaDL)
+  let hoverUnveilEl = null;
+  function initHoverUnveil() {
+    document.addEventListener('mouseover', (e) => {
+      const root = document.documentElement;
+      if (root.getAttribute('data-mb-hover') !== 'true') return;
+      let target = e.target.closest && e.target.closest('img, video, canvas, [data-mb-media]');
+      if (!target && e.clientX !== undefined && e.clientY !== undefined) {
+        const stack = document.elementsFromPoint(e.clientX, e.clientY);
+        for (const n of stack) {
+          if (n && n.matches && (n.matches('img, video, canvas, [data-mb-media]') || n.dataset?.mbMedia)) {
+            target = n;
+            break;
+          }
+        }
+      }
+      if (target && target !== hoverUnveilEl) {
+        if (hoverUnveilEl) hoverUnveilEl.classList.remove('tabmax-hover-unveil');
+        hoverUnveilEl = target;
+        hoverUnveilEl.classList.add('tabmax-hover-unveil');
+      }
+    }, { passive: true });
+
+    document.addEventListener('mouseout', (e) => {
+      if (hoverUnveilEl) {
+        const related = e.relatedTarget;
+        if (!related || (related !== hoverUnveilEl && !hoverUnveilEl.contains(related))) {
+          hoverUnveilEl.classList.remove('tabmax-hover-unveil');
+          hoverUnveilEl = null;
+        }
+      }
+    }, { passive: true });
   }
 
   let isForceRightClickOn = false;
@@ -622,13 +811,23 @@
     }
   }
 
-  const STATE_MAP = { mediaBlockEnabled: "data-mb-block", mediaInvertEnabled: "data-mb-invert", mediaHoverEnabled: "data-mb-hover", mediaUniformEnabled: "data-mb-uniform", targetImgEnabled: "data-mb-target-img", targetVidEnabled: "data-mb-target-vid" };
+  const STATE_MAP = {
+    mediaBlockEnabled: "data-mb-block",
+    mediaBlurEnabled: "data-mb-blur",
+    mediaInvertEnabled: "data-mb-invert",
+    mediaHoverEnabled: "data-mb-hover",
+    mediaUniformEnabled: "data-mb-uniform",
+    targetImgEnabled: "data-mb-target-img",
+    targetVidEnabled: "data-mb-target-vid"
+  };
 
   let currentBlurVal = 25;
   let currentBlurMode = "blur";
 
   function updateVisualFilter() {
     const root = document.documentElement;
+    root.style.setProperty("--mb-blur-val", `${currentBlurVal}px`);
+    root.setAttribute("data-mb-blur-mode", currentBlurMode);
     if (root.getAttribute("data-mb-blur") !== "true") {
       root.style.setProperty("--mb-blur-filter", "blur(0px)");
       return;
@@ -804,6 +1003,12 @@
 
   function init() {
     injectMasterStyle();
+    initMediaObserver();
+    initHoverUnveil();
+    scheduleMediaScan();
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", scheduleMediaScan, { once: true });
+    }
     chrome.storage.local.get(DEFAULTS, (state) => {
       if (!state) return;
       if (state.browserLockEnabled) showLockScreen();
