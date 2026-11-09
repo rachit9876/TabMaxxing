@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "TabMaxxing - Supercharge Your Browser Tabs",
-  "version": "5.1.0",
+  "version": "5.1.1",
   "description": "Max out your tabs: privacy filters, volume leveler, ad shield, media grabber, full-page capture, and browser tools.",
   "permissions": [
     "storage",
