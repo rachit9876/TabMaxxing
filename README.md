@@ -4,6 +4,13 @@
 
 [Download the latest ZIP](https://github.com/rachit9876/TabMaxxing/archive/refs/heads/main.zip)
 
+<div align="left">
+
+| <img src="https://dr-fast-upload.pages.dev/public/7c80c0b7700c.webp" /> |
+| :---: |
+
+</div>
+
 ## Features
 
 ### Visual Privacy & Media Filtering
